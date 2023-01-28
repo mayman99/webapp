@@ -1,11 +1,11 @@
 import React from 'react';
 import logo from './logo.svg';
 import './App.css';
-import UploadImage from './uploadImage';
+import Main from './Main';
 
 function App() {
   return (
-      <UploadImage />
+    <Main />
   );
 }
 
