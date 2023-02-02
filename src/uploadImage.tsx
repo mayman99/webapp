@@ -5,17 +5,12 @@ import Stack from '@mui/material/Stack';
 import { Button } from '@mui/material';
 import { Box } from '@mui/material';
 import { Fab, Paper, Grid } from '@mui/material';
-import { ConstructionOutlined, IceSkatingSharp, PestControlRodentSharp } from '@mui/icons-material';
 import { TextField, Grow } from '@mui/material';
 import EditCanvas from './EditImage';
 import { styled } from '@mui/material/styles';
-import { request } from 'https';
-import { MapContainer, TileLayer, Polyline } from 'react-leaflet';
-import { LatLngLiteral } from 'leaflet';
-import { LatLngExpression } from 'leaflet';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CircularProgress from '@mui/material/CircularProgress';
-
+import { img2imgReqBody } from './utils';
 
 const Item = styled(Paper)(({ theme }) => ({
     backgroundColor: theme.palette.mode === 'dark' ? '#1A2027' : '#fff',
@@ -45,58 +40,23 @@ function UploadImage() {
     const [uploadedImages, setuploadedImages] = React.useState([]);
     const [resultImage, setResultImage] = React.useState('');
     const [maskImage, setMaskImage] = React.useState('');
-    const [text, setText] = React.useState('');
     const [replaceText, setReplaceText] = React.useState('');
+    const [text, setText] = React.useState('');
     const [appState, setAppState] = React.useState(appStates.init);
     const maxNumber = 1;
-    const [selectedImage, setSelectedImage] = React.useState(null);
+    const [resizedImage, setResziedImage] = React.useState('');
     const [objectstMasks, setObjectstMasks] = React.useState([]);
 
     async function replaceRegion() {
-        // const initImage = `data:image/png;base64,${currentImage}`;
-        const initImage = uploadedImages.length > 0 ? uploadedImages[0].data_url : `data:image/png;base64,${resultImage}`;
+        const initImage = resizedImage;
         const maskImageInput = maskImage.length > 0 ? maskImage : "None";
         const img2imgReq = {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                "init_images": [initImage],
-                "resize_mode": 0,
-                "denoising_strength": 0.75,
-                "mask": maskImageInput,
-                "mask_blur": 4,
-                "inpainting_fill": 0,
-                "inpaint_full_res": "True",
-                "inpaint_full_res_padding": 0,
-                "inpainting_mask_invert": 1,
-                "prompt": '',
-                "styles": [],
-                "seed": -1,
-                "subseed": -1,
-                "subseed_strength": 0,
-                "seed_resize_from_h": -1,
-                "seed_resize_from_w": -1,
-                "batch_size": 1,
-                "n_iter": 1,
-                "steps": 60,
-                "cfg_scale": 7,
-                "width": 512,
-                "height": 512,
-                "restore_faces": "False",
-                "tiling": "False",
-                "negative_prompt": "",
-                "eta": 0,
-                "s_churn": 0,
-                "s_tmax": 0,
-                "s_tmin": 0,
-                "s_noise": 1,
-                "override_settings": {},
-                "sampler_index": "Euler a",
-                "include_init_images": "False"
-            })
+            body: img2imgReqBody(initImage, maskImage, text)
         };
 
-        const finalResponse = fetch('https://9fd6-85-108-192-163.ngrok.io/sdapi/v1/img2img', img2imgReq)
+        const finalResponse = fetch('https://01ff-85-108-192-163.ngrok.io/sdapi/v1/img2img', img2imgReq)
             .then(response => response.json())
             .then(data => { console.log(data); setResultImage(data['images'][0]); setAppState(appStates.Done) })
 
@@ -112,7 +72,7 @@ function UploadImage() {
                 "image": initImage,
             }),
         }).then(response => response.json())
-            .then(data => { console.log(data); setAppState(appStates.Editing); setcurrentImage(data['image']); setObjectstMasks(data['cnts']); })
+            .then(data => { setAppState(appStates.Editing); setcurrentImage(data['image']); setResziedImage(data['resized']); setObjectstMasks(data['cnts']); })
     }
 
     function overlayMasksArray() {
@@ -213,7 +173,7 @@ function UploadImage() {
             {appState === appStates.Editing &&
                 <Grow in {...(1 ? { timeout: 1000 } : {})}>
                     <Item>
-                        <EditCanvas ImageBase64={`data:image/png;base64,${currentImage}`} masks={overlayMasksArray()} onMaskImageChange={setMaskImage} setAppState={setAppState} />
+                        <EditCanvas ImageBase64={`data:image/png;base64,${currentImage}`} masks={overlayMasksArray()} onMaskImageChange={setMaskImage} setText={setReplaceText} setAppState={setAppState} />
                     </Item>
                 </Grow>
             }

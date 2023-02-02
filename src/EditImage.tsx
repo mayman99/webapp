@@ -5,7 +5,7 @@ import useImage from "use-image";
 import { Box } from "@mui/system";
 import Konva from "konva";
 import { LineConfig } from "konva/lib/shapes/Line";
-import { Button, Stack } from "@mui/material";
+import { Button, Stack, TextField } from "@mui/material";
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import BrushIcon from '@mui/icons-material/Brush';
 import { SpaceBar } from "@mui/icons-material";
@@ -42,11 +42,12 @@ enum EditingStates {
 type EditCanvasProps = {
   ImageBase64: string;
   onMaskImageChange: React.Dispatch<React.SetStateAction<string>>;
+  setText: React.Dispatch<React.SetStateAction<string>>;
   setAppState: React.Dispatch<React.SetStateAction<appStates>>;
   masks: number[][];
 };
 
-const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState }: EditCanvasProps) => {
+const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState, setText }: EditCanvasProps) => {
 
   const [editingState, setEditingState] = React.useState(EditingStates.Selecting);
   const [image] = useImage(ImageBase64);
@@ -81,6 +82,10 @@ const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState }: Edit
   }, [masks, stageRef]);
 
 
+  const handleReplacmentTextChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setText(event.target.value);
+  };
+
   const switchBrushSelect = () => {
     if (editingState === EditingStates.Selecting) {
       const newLines = stageRef.current.find('Line');
@@ -99,7 +104,6 @@ const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState }: Edit
     const uri = stageRef.current.toDataURL();
     onMaskImageChange(uri);
     setAppState(appStates.Replacing);
-    downloadURI(uri, 'ai-artist.app');
   };
 
   const handleMouseDown = (e) => {
@@ -193,7 +197,9 @@ const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState }: Edit
               <Button variant="contained" disabled>Replace selected regions<NavigateNextIcon /></Button>
             </Box>
             <Box>
-              <Button variant="contained" onClick={handleExport}>Remove selected regions<NavigateNextIcon /></Button>
+              <TextField onChange={handleReplacmentTextChange} placeholder="Replace the rest of the image with" />
+              <br></br>
+              <Button variant="contained" onClick={handleExport}>Keep selected regions<NavigateNextIcon /></Button>
             </Box>
           </Stack>
         </Box>
