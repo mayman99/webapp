@@ -173,6 +173,7 @@ function UploadImage() {
             {appState === appStates.Editing &&
                 <Grow in {...(1 ? { timeout: 1000 } : {})}>
                     <Item>
+                        console.log(currentImage);
                         <EditCanvas ImageBase64={`data:image/png;base64,${currentImage}`} masks={overlayMasksArray()} onMaskImageChange={setMaskImage} setText={setReplaceText} setAppState={setAppState} />
                     </Item>
                 </Grow>
