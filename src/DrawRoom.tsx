@@ -131,7 +131,7 @@ function DrawRoom() {
             {appState === appStates.Editing &&
                 <Grow in {...(1 ? { timeout: 1000 } : {})}>
                     <Item>
-                        <EditCanvas ImageBase64={`data:image/png;base64,${currentImage}`} masks={overlayMasksArray()} onMaskImageChange={setMaskImage} setText={setReplaceText} setAppState={setAppState} />
+                        <EditCanvas ImageBase64={`${currentImage}`} masks={overlayMasksArray()} onMaskImageChange={setMaskImage} setText={setReplaceText} setAppState={setAppState} />
                     </Item>
                 </Grow>
             }
