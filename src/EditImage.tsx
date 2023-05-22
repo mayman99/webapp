@@ -103,7 +103,7 @@ const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState, setTex
     stageRef.current.getStage().getLayers()[1].destroy();
     const uri = stageRef.current.toDataURL();
     onMaskImageChange(uri);
-    setAppState(appStates.Replacing);
+    setAppState(appStates.Done);
   };
 
   const handleMouseDown = (e) => {
