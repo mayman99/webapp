@@ -14,9 +14,7 @@ export default function Main() {
       <CssBaseline />
       <ResponsiveAppBar />
       <main>
-          {/* TODO: ai-artist app
-            <UploadImage />
-          */}
+          {/* <UploadImage /> */}
           <DrawRoom />
       </main>
       <Box sx={{ bgcolor: 'background.paper', p: 6 }} component="footer">

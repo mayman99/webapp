@@ -30,9 +30,7 @@ export enum appStates {
     init = "init",
     Editing = "editing",
     Replacing = "replacing",
-    Done = "done",
-    Error = "error",
-    ThreeD = "3d"
+    Done = "done"
 };
 
 function UploadImage() {
@@ -185,13 +183,13 @@ function UploadImage() {
                     </Item>
                 </Grow>
             }
-            {appState === appStates.Replacing &&
+            {/* {appState === appStates.Replacing &&
                 <Grow in {...(1 ? { timeout: 1000 } : {})}>
                     <Item>
                         <CircularProgress onAnimationStartCapture={replaceRegion} />
                     </Item>
                 </Grow>
-            }
+            } */}
             {appState === appStates.Done &&
                 <Grow in {...(1 ? { timeout: 1000 } : {})}>
                     <Item>
