@@ -141,11 +141,12 @@ const Room2DStage = ({ setAppState, setRoomKeySegments }: Edit2DCanvasProps) => 
     <>
       <Stack spacing={3}>
         <Box>
-          <Button onClick={switchBrush('walls')} variant="contained" color={brush === 'walls' ? 'success': 'info'}>Draw Walls<BrushIcon /></Button>
+          <p>Drawing</p>
+          <Button onClick={switchBrush('walls')} variant="contained" color={brush === 'walls' ? 'success': 'info'}>Walls<BrushIcon /></Button>
           <span> </span>
-          <Button onClick={switchBrush('doors')} variant="contained" color={brush === 'doors' ? 'success': 'info'}>Draw Doors<BrushIcon /></Button>
+          <Button onClick={switchBrush('doors')} variant="contained" color={brush === 'doors' ? 'success': 'info'}>Doors<BrushIcon /></Button>
           <span> </span>
-          <Button onClick={switchBrush('windows')} variant="contained" color={brush === 'windows' ? 'success': 'info'}>Draw windows<BrushIcon /></Button>
+          <Button onClick={switchBrush('windows')} variant="contained" color={brush === 'windows' ? 'success': 'info'}>windows<BrushIcon /></Button>
         </Box>
         <Box>
           <Stage
@@ -220,7 +221,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments }: Edit2DCanvasProps) => 
           <SpaceBar />
         </Box>
         <Box textAlign='center'>
-          <Button size="large" color="success" variant='contained' onClick={to3D}>Process to 3D <NavigateNextIcon /></Button>
+          <Button size="large" color="success" variant='contained' onClick={to3D}>Proceed to 3D <NavigateNextIcon /></Button>
         </Box>
       </Stack>
     </>
