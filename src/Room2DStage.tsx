@@ -43,6 +43,7 @@ enum EditingStates {
 type Edit2DCanvasProps = {
   setAppState: React.Dispatch<React.SetStateAction<appStates>>;
   setRoomKeySegments: React.Dispatch<React.SetStateAction<RoomKeySegment[]>>;
+  setInitImage: React.Dispatch<React.SetStateAction<String>>;
 };
 
 const StageToKeyPoints = (lines: LineConfig[]) => {
@@ -53,7 +54,7 @@ const StageToKeyPoints = (lines: LineConfig[]) => {
   return keySegments;
 };
 
-const Room2DStage = ({ setAppState, setRoomKeySegments }: Edit2DCanvasProps) => {
+const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCanvasProps) => {
 
   const [tool, setTool] = React.useState("pen");
   const [brush, setBrush] = React.useState('walls');
@@ -63,6 +64,12 @@ const Room2DStage = ({ setAppState, setRoomKeySegments }: Edit2DCanvasProps) => 
 
   const isDrawing = React.useRef(false);
   const stageRef = React.useRef(null);
+
+  const handleExport = () => {
+    const uri : String = stageRef.current.toDataURL();
+    setInitImage(uri);
+    downloadURI(uri, "initImage.png");
+  };
 
   const handleMouseDown = (e) => {
     isDrawing.current = true;
@@ -134,6 +141,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments }: Edit2DCanvasProps) => 
     segments.concat(StageToKeyPoints(doorLines));
     segments.concat(StageToKeyPoints(windowLines));    
     setRoomKeySegments(segments);
+    handleExport();
     setAppState(appStates.ThreeD);
   };
 
