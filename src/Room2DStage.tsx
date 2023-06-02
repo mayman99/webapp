@@ -11,6 +11,9 @@ import { Segment, SpaceBar } from "@mui/icons-material";
 import { appStates } from "./uploadImage";
 import { RoomKeySegment } from "./DrawRoom";
 import { LineConfig } from "konva/lib/shapes/Line";
+import { DEFAULT_SETTINGS } from "./constants";
+import { RGBtoHex, colorFloor } from "./utils";
+
 
 const URLImage = ({ image }) => {
   const [img] = useImage(image.src);
@@ -65,8 +68,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
   const isDrawing = React.useRef(false);
   const stageRef = React.useRef(null);
 
-  const handleExport = () => {
-    const uri : String = stageRef.current.toDataURL();
+  const handleExport = (uri: String) => {
     setInitImage(uri);
     downloadURI(uri, "initImage.png");
   };
@@ -141,7 +143,13 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
     segments.concat(StageToKeyPoints(doorLines));
     segments.concat(StageToKeyPoints(windowLines));    
     setRoomKeySegments(segments);
-    handleExport();
+    const uri : String = stageRef.current.toDataURL();
+
+    // const img = stageRef.current.bufferCanvas._canvas.getContext('2d').getImageData(0, 0, 512, 512).data;
+    // const length = stageRef.current.bufferCanvas._canvas.getContext('2d').getImageData(0, 0, 512, 512).length;
+    // colorFloor(img, length/4, wallLines, doorLines);
+
+    handleExport(uri);
     setAppState(appStates.ThreeD);
   };
 
@@ -182,7 +190,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
                 <Line
                   key={i}
                   points={line.points}
-                  stroke='#000000'
+                  stroke={RGBtoHex(DEFAULT_SETTINGS.wallsColor)}
                   strokeWidth={10}
                   tension={0.5}
                   lineCap="round"
@@ -214,7 +222,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
                 <Line
                   key={i}
                   points={line.points}
-                  stroke='#ff00ff'
+                  stroke={RGBtoHex(DEFAULT_SETTINGS.doorsColor)}
                   strokeWidth={10}
                   tension={0.5}
                   lineCap="round"

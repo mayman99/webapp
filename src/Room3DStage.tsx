@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import { memo, useRef, forwardRef } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Grid, Center, AccumulativeShadows, RandomizedLight, Environment, useGLTF, CameraControls } from '@react-three/drei'
+import { Grid, Center, AccumulativeShadows, RandomizedLight, Environment, CameraControls, Circle } from '@react-three/drei'
 import { useControls, button, buttonGroup, folder } from 'leva'
-
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { createRoot } from 'react-dom/client'
 import { Room } from '@mui/icons-material'
+import { useLoader } from "@react-three/fiber";
 import { appStates } from './DrawRoom'
 import { RoomKeySegment } from './DrawRoom'
 import Empty3DRoom from './Empty3DRoom'
@@ -18,9 +19,18 @@ type Edit3DCanvasProps = {
 };
 
 export default function Room3DStage({ setAppState, RoomKeySegments }: Edit3DCanvasProps) {
+    // const gltf = useLoader(
+    //     GLTFLoader,
+    //     'https://cdn.jsdelivr.net/gh/Sean-Bradley/React-Three-Fiber-Boilerplate@glTFLoader/public/models/monkey.glb'
+    //   );
     return (
         <Canvas style={{ width: "60vw", height: "60vh" }} shadows camera={{ position: [RoomKeySegments[0].x1, RoomKeySegments[0].y1, 10], fov: 60, up: [0, 0, 1] }}>
             <Scene setAppState={setAppState} RoomKeySegments={RoomKeySegments} />
+            {/* <primitive object={gltf.scene}  position={[0, 1, 0]} children-0-castShadow /> */}
+            <Circle args={[10]} rotation-x={-Math.PI / 2} receiveShadow>
+              <meshStandardMaterial />
+            </Circle>
+            <axesHelper args={[5]} />
         </Canvas>
     );
 }
@@ -182,3 +192,12 @@ const Shadows = memo(() => (
         <RandomizedLight amount={8} radius={4} position={[5, 5, -10]} />
     </AccumulativeShadows>
 ));
+
+const Model = () => {
+    const gltf = useLoader(GLTFLoader, "./raw_model.gltf");
+    return (
+      <>
+        <primitive object={gltf.scene} scale={0.4} />
+      </>
+    );
+  };
