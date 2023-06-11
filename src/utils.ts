@@ -1,14 +1,8 @@
+import { RoomKeySegment } from "./DrawRoom";
 
 interface Point {
     x: number;
     y: number;
-  }
-  
-  interface Line {
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
   }
   
 export function img2imgReqBody(initImages: string, mask: string, prompt: string) {
@@ -49,64 +43,107 @@ export function img2imgReqBody(initImages: string, mask: string, prompt: string)
     });
 }
 
-export function replaceColor(ctx, fromColor, toColor) {
-    const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
-    const data = imageData.data;
-    const len = data.length;
+// export function replaceColor(ctx, fromColor, toColor) {
+//     const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+//     const data = imageData.data;
+//     const len = data.length;
 
-    // Iterate over each pixel
-    for (let i = 0; i < len; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
+//     // Iterate over each pixel
+//     for (let i = 0; i < len; i += 4) {
+//         const r = data[i];
+//         const g = data[i + 1];
+//         const b = data[i + 2];
 
-        // Check if the pixel's color matches the color to be replaced
-        if (r === fromColor[0] && g === fromColor[1] && b === fromColor[2]) {
-            // Replace the color
-            data[i] = toColor[0];
-            data[i + 1] = toColor[1];
-            data[i + 2] = toColor[2];
+//         // Check if the pixel's color matches the color to be replaced
+//         if (r === fromColor[0] && g === fromColor[1] && b === fromColor[2]) {
+//             // Replace the color
+//             data[i] = toColor[0];
+//             data[i + 1] = toColor[1];
+//             data[i + 2] = toColor[2];
+//         }
+//     }
+
+//     // Put the modified image data back onto the canvas
+//     ctx.putImageData(imageData, 0, 0);
+// }
+
+export function colorFloor(img, lines, floorColor) {
+    
+    const data = img.data;
+    let maxX = 0;
+    let maxY = 512;
+    let minX =512;
+    let minY = 0;
+    for (let i = 0, j = lines.length - 1; i < lines.length; j = i++) {
+        const line = lines[i];
+        if	(line.x1 > maxX) {
+            maxX = line.x1;
         }
-    }
-
-    // Put the modified image data back onto the canvas
-    ctx.putImageData(imageData, 0, 0);
-}
-
-export function colorFloor(data, len, wallsLines, doorsLines) {
-
+        if	(line.x1 < minX) {
+            minX = line.x1;
+        }
+        if	(line.y1 > maxY) {
+            maxY = line.y1;
+        }
+        if	(line.y1 < minY) {
+            minY = line.y1;
+        }
+        if	(line.x2 > maxX) {
+            maxX = line.x2;
+        }
+        if	(line.x2 < minX) {
+            minX = line.x2;
+        }
+        if	(line.y2 > maxY) {
+            maxY = line.y2;
+        }
+        if	(line.y2 < minY) {
+            minY = line.y2;
+        }
+    }  
     // Iterate over each pixel
-    for (let i = 0; i < len; i += 4) {
+    for (let i = 0; i < data.length; i += 4) {
         // const r = data[i];
         // const g = data[i + 1];
         // const b = data[i + 2];
-  
+        
         // // Check if the pixel's color matches the color to be replaced
         // if (r === fromColor[0] && g === fromColor[1] && b === fromColor[2]) {
-        //   // Replace the color
-        //   data[i] = toColor[0];
-        //   data[i + 1] = toColor[1];
-        //   data[i + 2] = toColor[2];
-        // }
-        if (isPointInsideLines({x: i % 512, y: Math.floor(i / 512)}, wallsLines) || isPointInsideLines({x: i % 512, y: Math.floor(i / 512)}, doorsLines)) {
-            data[i] = 236;
+            //   // Replace the color
+            //   data[i] = toColor[0];
+            //   data[i + 1] = toColor[1];
+            //   data[i + 2] = toColor[2];
+            // }
+        const p : Point = {x: Math.floor(i / 2048), y: i % 2048};
+        if (p.x < minX || p.x > maxX || p.y < minY || p.y > maxY) {
+            // Definitely not within the polygon!
+            data[i] = 0;
             data[i + 1] = 240;
-            data[i + 2] = 216;
+            data[i + 2] = 0;
         }
+        
+
+        // if (isPointInsideLines({x: Math.floor(i / 2048), y: i % 2048}, lines)) {
+        //     data[i] = 236;
+        //     data[i + 1] = 240;
+        //     data[i + 2] = 216;
+        //     console.log(Math.floor(i / 2048), i%2048);
+        // }
     }
 
+    return img;
     // Put the modified image data back onto the canvas
     // ctx.putImageData(imageData, 0, 0);
 }
 
-function isPointInsideLines(point: Point, lines: Line[]): boolean {
+function isPointInsideLines(point: Point, lines: RoomKeySegment[]): boolean {
     let inside = false;
     for (let i = 0, j = lines.length - 1; i < lines.length; j = i++) {
       const line = lines[i];
       const intersect =
-        line.y1 > point.y !== line.y2 > point.y &&
+        line.x1 > point.y !== line.y2 > point.y &&
         point.x <
-          ((line.x2 - line.x1) *
+          ((line.y2 - line.x1) *
             (point.y - line.y1)) /
             (line.y2 - line.y1) +
             line.x1;

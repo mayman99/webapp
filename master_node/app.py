@@ -60,7 +60,8 @@ async def upload_image(image: dict):
     print(json_result)
 
     return {
-        "status": "Processing started"
+        "status": "Processing started",
+        "result": json_result
     }
 
 @app.websocket("/progress/{image_name}")
@@ -181,11 +182,6 @@ async def image_to_json(image_base64: str):
         """
         id of object repersented by cluster (could be converted later to category)
         """
-        # f, axarr = plt.subplots(1,2)
-        # axarr[0].imshow(binary_image_of_cluster)
-        # axarr[1].imshow(img_array)
-        # plt.show()
-
         # find the average value of those pixels colors in the original image    
         object_pixels_values = sum_pixels_cluster(img_array, binary_image_of_cluster)
         avg_color = object_pixels_values/np.sum(binary_image_of_cluster)
@@ -200,10 +196,8 @@ async def image_to_json(image_base64: str):
         # Apply erosion operation
         eroded_image = cv2.erode(mask, kernel, iterations=6)
         num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(eroded_image)
-        print("num_labels: ", num_labels)
-        print(centroids)
-        # plt.imshow(labels)
-        # plt.show()
+        # print("num_labels: ", num_labels)
+        # print(centroids)
         return centroids
 
     def clusters_num(wcss: list):
@@ -212,27 +206,26 @@ async def image_to_json(image_base64: str):
                 return idx
         return len(wcss)
 
-    def color_to_cat(color):
-        """
-        :param: color a list of three numbers
-        colors are mapped to categories as follows color = [cat_id*10, 0, cat_id*5]
-        cat_id = color[0]/10
-        returns the category name of the object the given pixel belongs to
-        """
-        return id_to_cat[color[2]/2]
-
-    def get_model_path(category:str, models_info_data:dict):
+    def get_model_path(category:str, models_info_data:dict, online:bool=True):
         """
         Given a cetegory return a 3d obj model path given the data in models_info_data
         """
-        for model_id in models_info_data.keys():
-            if "category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
-                if category in models_info_data[model_id]["category"].lower():
-                    return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
-            elif "super-category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
-                if category in models_info_data[model_id]["super-category"].lower():
-                    return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
-        return None
+        if online:
+            base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
+            online_models_list = ["bed", "wardrobe", "nightstand"]
+            for model_name in online_models_list:
+                if "category" in model_name:
+                    return base_online_url + model_name + 'raw_model.glb'    
+            return None
+        else:
+            for model_id in models_info_data.keys():
+                if "category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
+                    if category in models_info_data[model_id]["category"].lower():
+                        return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
+                elif "super-category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
+                    if category in models_info_data[model_id]["super-category"].lower():
+                        return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
+            return None
 
     def get_model_info():   
         id_to_cat = {}
@@ -297,8 +290,8 @@ async def image_to_json(image_base64: str):
             #TODO remove the first centroid because it is empty most of the time
             location_category[get_model_path(obj_cat, models_info_data)] = locs[1:].tolist()
 
-    with open(os.path.join(output_json, img_name +'.json'), "w") as f:    
-        json.dump(location_category, f)
+    # with open(os.path.join(output_json, img_name +'.json'), "w") as f:    
+    #     json.dump(location_category, f)
 
     return {"status": "success", "result": location_category}
 

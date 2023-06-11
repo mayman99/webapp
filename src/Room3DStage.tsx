@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { memo, useRef, forwardRef } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
-import { Grid, Center, AccumulativeShadows, RandomizedLight, Environment, CameraControls, Circle } from '@react-three/drei'
+import { Grid, useGLTF, Center, AccumulativeShadows, RandomizedLight, Environment, CameraControls, PerspectiveCamera, Circle } from '@react-three/drei'
 import { useControls, button, buttonGroup, folder } from 'leva'
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 import { createRoot } from 'react-dom/client'
@@ -10,37 +10,44 @@ import { useLoader } from "@react-three/fiber";
 import { appStates } from './DrawRoom'
 import { RoomKeySegment } from './DrawRoom'
 import Empty3DRoom from './Empty3DRoom'
+import { Suspense } from "react";
+import { Model3D } from './DrawRoom'
 
 const { DEG2RAD } = THREE.MathUtils
 
 type Edit3DCanvasProps = {
     setAppState: React.Dispatch<React.SetStateAction<appStates>>;
     RoomKeySegments: Array<RoomKeySegment>;
+    models: Array<Model3D>;
 };
 
-export default function Room3DStage({ setAppState, RoomKeySegments }: Edit3DCanvasProps) {
-    // const gltf = useLoader(
-    //     GLTFLoader,
-    //     'https://cdn.jsdelivr.net/gh/Sean-Bradley/React-Three-Fiber-Boilerplate@glTFLoader/public/models/monkey.glb'
-    //   );
+export default function Room3DStage({ setAppState, RoomKeySegments, models }: Edit3DCanvasProps) {
     return (
-        <Canvas style={{ width: "60vw", height: "60vh" }} shadows camera={{ position: [RoomKeySegments[0].x1, RoomKeySegments[0].y1, 10], fov: 60, up: [0, 0, 1] }}>
-            <Scene setAppState={setAppState} RoomKeySegments={RoomKeySegments} />
-            {/* <primitive object={gltf.scene}  position={[0, 1, 0]} children-0-castShadow /> */}
-            <Circle args={[10]} rotation-x={-Math.PI / 2} receiveShadow>
-              <meshStandardMaterial />
-            </Circle>
+        <Canvas style={{ width: "90vw", height: "90vh" }} shadows>
+            <Scene setAppState={setAppState} models={models} RoomKeySegments={RoomKeySegments} />
+            <Suspense fallback={null}>
+                {models.map((model) => (
+                    <Model path={model.path} />
+                ))}
+            </Suspense>
             <axesHelper args={[5]} />
         </Canvas>
     );
 }
 
-const Scene = forwardRef<THREE.Mesh, Edit3DCanvasProps>((props, ref) => {
+function Model({ path }: { path: string }) {
+    const gltf = useLoader(GLTFLoader, path);
+    return (
+        <>
+            <primitive object={gltf.scene} scale={1.2} position={[0, 0, 0]} />
+        </>
+    );
+}
 
-    const { setAppState, RoomKeySegments } = props;
+const Scene = forwardRef<THREE.Mesh, Edit3DCanvasProps>((props, ref) => {
+    const { setAppState, RoomKeySegments, models } = props;
     const meshRef = useRef<any>();
     const cameraControlsRef = useRef<any>();
-
     const { camera } = useThree();
 
     // All same options as the original "basic" example: https://yomotsu.github.io/camera-controls/examples/basic.html
@@ -164,6 +171,7 @@ const Scene = forwardRef<THREE.Mesh, Edit3DCanvasProps>((props, ref) => {
                     verticalDragToForward={verticalDragToForward}
                     dollyToCursor={dollyToCursor}
                     infinityDolly={infinityDolly}
+
                 />
                 <Environment preset="city" />
             </group>
@@ -192,12 +200,3 @@ const Shadows = memo(() => (
         <RandomizedLight amount={8} radius={4} position={[5, 5, -10]} />
     </AccumulativeShadows>
 ));
-
-const Model = () => {
-    const gltf = useLoader(GLTFLoader, "./raw_model.gltf");
-    return (
-      <>
-        <primitive object={gltf.scene} scale={0.4} />
-      </>
-    );
-  };

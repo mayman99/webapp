@@ -68,9 +68,10 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
   const isDrawing = React.useRef(false);
   const stageRef = React.useRef(null);
 
-  const handleExport = (uri: String) => {
+  const handleExport = () => {
+    const uri : String = stageRef.current.toDataURL();
+    downloadURI(uri, 'initimage.png')
     setInitImage(uri);
-    downloadURI(uri, "initImage.png");
   };
 
   const handleMouseDown = (e) => {
@@ -142,14 +143,12 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
     const segments : RoomKeySegment[] = StageToKeyPoints(wallLines);
     segments.concat(StageToKeyPoints(doorLines));
     segments.concat(StageToKeyPoints(windowLines));    
+    // const img = stageRef.current.bufferCanvas._canvas.getContext('2d').getImageData(0, 0, 512, 512);
+    // const coloredImage = colorFloor(img, segments, DEFAULT_SETTINGS.floorColor);
+    // stageRef.current.bufferCanvas._canvas.getContext('2d').putImageData(coloredImage, 0, 0);
+    // console.log(coloredImage);
     setRoomKeySegments(segments);
-    const uri : String = stageRef.current.toDataURL();
-
-    // const img = stageRef.current.bufferCanvas._canvas.getContext('2d').getImageData(0, 0, 512, 512).data;
-    // const length = stageRef.current.bufferCanvas._canvas.getContext('2d').getImageData(0, 0, 512, 512).length;
-    // colorFloor(img, length/4, wallLines, doorLines);
-
-    handleExport(uri);
+    handleExport();
     setAppState(appStates.ThreeD);
   };
 
@@ -178,7 +177,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
               <Rect
                 width={512}
                 height={512}
-                fill="white"
+                fill={RGBtoHex(DEFAULT_SETTINGS.floorColor)}
               />
             </Layer>
             {/* background grid image for guidance

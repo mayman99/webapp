@@ -46,12 +46,21 @@ export type RoomKeySegment = {
     type: string
 };
 
+export type Model3D = {
+    x: number,
+    y: number,
+    z: number,
+    rot: number,
+    path: string,
+};
+
 function DrawRoom() {
 
     // Current state image
     const [currentImage, setcurrentImage] = React.useState('');
     const [uploadedImages, setuploadedImages] = React.useState([]);
     const [RoomKeySegments, setRoomKeySegments] = React.useState(Array<RoomKeySegment>());
+    const [models, setModels] = React.useState(Array<Model3D>());
     const [initImage, setInitImage] = React.useState('');
     const [resultImage, setResultImage] = React.useState('');
     const [maskImage, setMaskImage] = React.useState('');
@@ -64,18 +73,20 @@ function DrawRoom() {
 
     // send a post call to server when initImage is changed
     React.useEffect(() => {
-        async function postInit() {
-            const img2imgReq = {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(initImage),
-                msg: {'data': initImage}
-            };
-    
-            const finalResponse = fetch(uploadInitImageURL, img2imgReq)
-                .then(response => response.json())
-                .then(data => { console.log(data); })
+        async function setData (data) {
+            const models : Model3D[] = [];
+            for (const key in data['result']) {
+                if (data['result'].hasOwnProperty(key)) {
+                  const positions = data['result'][key];
+                  for (let i = 0; i < positions.length; i++) {
+                    models.push({path: key, x: positions[i][0], y: positions[i][1], z: 0, rot: 0});
+                  }
+                }
+              }
+              console.log(models);
+            setModels(models);
         }
+
         async function postInitImage () {
             const base64Image = initImage.split(",")[1];
             
@@ -92,6 +103,7 @@ function DrawRoom() {
                 .then(response => response.json())
                 .then(data => {
                 console.log('Response:', data);
+                setData(data);
                 })
                 .catch(error => {
                 console.error('Error:', error);
@@ -116,7 +128,7 @@ function DrawRoom() {
             <Grow in {...(1 ? { timeout: 1000 } : {})}>
                 <Box sx={{ height: '100%' }} height={'1000px'}>
                     <Item>
-                        <Room3DStage setAppState={setAppState} RoomKeySegments={RoomKeySegments} />
+                        <Room3DStage models={models} setAppState={setAppState} RoomKeySegments={RoomKeySegments} />
                     </Item>
                 </Box>
             </Grow>

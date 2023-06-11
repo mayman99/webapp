@@ -7,27 +7,20 @@ import { appStates } from './DrawRoom'
 import { RoomKeySegment } from './DrawRoom'
 import { Box } from './Box'
 
-// function WallShapeSegmentBuilder(RoomKeySegments) {
-//     const wallSegments = [];
-//     // for (let i = 0; i < RoomKeySegments.length; i++) {
-//     //     console.log(RoomKeySegments[i]);
-//     //     const shape = new THREE.Shape();
-//     //     shape.moveTo(RoomKeySegments[i].x1, RoomKeySegments[i].y1);
-//     //     shape.lineTo(RoomKeySegments[i].x1, RoomKeySegments[i].y1 + RoomKeySegments[i].y2);
-//     //     shape.lineTo(RoomKeySegments[i].x1 + RoomKeySegments[i].x2, RoomKeySegments[i].y1 + RoomKeySegments[i].y2);
-//     //     shape.lineTo(RoomKeySegments[i].x1 + RoomKeySegments[i].x2, RoomKeySegments[i].y1);
-//     //     shape.lineTo(RoomKeySegments[i].x1, RoomKeySegments[i].y1);
-//     //     wallSegments.push(shape);
-//     // }
-//     const shape = new THREE.Shape();
-//     shape.moveTo(-1.2, 0);
-//     shape.lineTo(-1.2, 0 );
-//     shape.lineTo(-1.2 + 1.2, 0);
-//     shape.lineTo(-1.2 + 1.2, 0);
-//     shape.lineTo(-1.2, 0);
-//     wallSegments.push(shape);
-//     return wallSegments;
-// }
+function WallShapeSegmentBuilder(RoomKeySegments) {
+    const wallSegments = [];
+    for (let i = 0; i < RoomKeySegments.length; i++) {
+        console.log(RoomKeySegments[i]);
+        const shape = new THREE.Shape();
+        shape.moveTo(RoomKeySegments[i].x1, RoomKeySegments[i].y1);
+        shape.lineTo(RoomKeySegments[i].x1, RoomKeySegments[i].y1 + RoomKeySegments[i].y2);
+        shape.lineTo(RoomKeySegments[i].x1 + RoomKeySegments[i].x2, RoomKeySegments[i].y1 + RoomKeySegments[i].y2);
+        shape.lineTo(RoomKeySegments[i].x1 + RoomKeySegments[i].x2, RoomKeySegments[i].y1);
+        shape.lineTo(RoomKeySegments[i].x1, RoomKeySegments[i].y1);
+        wallSegments.push(shape);
+    }
+    return wallSegments;
+}
 
 export interface WallSegment {
     position: number[];
@@ -66,7 +59,7 @@ function graphToWalls(RoomKeySegments: RoomKeySegment[]) {
         const depth = distance(x1, x2, y1, y2);
         const midpoint = midPoint(x1, x2, y1, y2);
         const width = 0.5;
-        const heigt = 10;
+        const heigt = 5;
         const position = midpoint.concat(heigt / 2);
         const v = new THREE.Vector3(x1 - x2, 0, y1 - y2);
         v.normalize();
@@ -116,6 +109,8 @@ const Empty3DRoom = React.forwardRef<THREE.Mesh, Edit3DCanvasProps & ThreeElemen
                     position={[walls_[i].position[0], walls_[i].position[1], walls_[i].position[2]]}
                 ></Box>
             ))}
+            {/* <extrudeGeometry args={[WallShapeSegmentBuilder(RoomKeySegments), { depth: 10 }]} /> */}
+
         </mesh>
     )
 });
