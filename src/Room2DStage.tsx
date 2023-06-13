@@ -13,7 +13,7 @@ import { RoomKeySegment } from "./DrawRoom";
 import { LineConfig } from "konva/lib/shapes/Line";
 import { DEFAULT_SETTINGS } from "./constants";
 import { RGBtoHex, colorFloor } from "./utils";
-
+import { DrawingPoint } from "./DrawRoom";
 
 const URLImage = ({ image }) => {
   const [img] = useImage(image.src);
@@ -47,6 +47,7 @@ type Edit2DCanvasProps = {
   setAppState: React.Dispatch<React.SetStateAction<appStates>>;
   setRoomKeySegments: React.Dispatch<React.SetStateAction<RoomKeySegment[]>>;
   setInitImage: React.Dispatch<React.SetStateAction<String>>;
+  setInitPoints: React.Dispatch<React.SetStateAction<RoomKeySegment[]>>;
 };
 
 const StageToKeyPoints = (lines: LineConfig[]) => {
@@ -57,8 +58,7 @@ const StageToKeyPoints = (lines: LineConfig[]) => {
   return keySegments;
 };
 
-const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCanvasProps) => {
-
+const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage, setInitPoints }: Edit2DCanvasProps) => {
   const [tool, setTool] = React.useState("pen");
   const [brush, setBrush] = React.useState('walls');
   const [wallLines, setWallLines] = React.useState([]);
@@ -70,8 +70,24 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage }: Edit2DCa
 
   const handleExport = () => {
     const uri : String = stageRef.current.toDataURL();
-    downloadURI(uri, 'initimage.png')
-    setInitImage(uri);
+    downloadURI(uri, 'initimage.png');
+    const point = setDrawingPoints();
+    setInitPoints(point);
+    // setInitImage(uri);
+  };
+
+  const setDrawingPoints = () => {
+    const points : RoomKeySegment[] = [];
+    wallLines.forEach((line) => {
+      points.push({ x1: line.points[0], y1: line.points[1], x2: line.points[2], y2: line.points[3], type: "wall" });
+    });
+    doorLines.forEach((line) => {
+      points.push({ x1: line.points[0], y1: line.points[1], x2: line.points[2], y2: line.points[3], type: "door" });
+    });
+    windowLines.forEach((line) => {
+      points.push({ x1: line.points[0], y1: line.points[1], x2: line.points[2], y2: line.points[3], type: "window" });
+    });
+    return points;
   };
 
   const handleMouseDown = (e) => {
