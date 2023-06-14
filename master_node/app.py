@@ -98,13 +98,7 @@ async def process_points(response: str, fake_backend: bool = True):
     # Read Image in RGB order
     points = response.get('data')
     empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
-    mid_points = []
-    for i in range(0, len(points)):
-        mid_points.append([points[i]['x1'], points[i]['y1']])
-        mid_points.append([points[i]['x1'], points[i]['y2']])
-
-    print(mid_points)
-    drawing_array = change_values_inside_polygon(empty_drawing_array, mid_points, [0, 0, 0], [255, 255, 255])
+    drawing_array = change_values_inside_polygon(empty_drawing_array, points)
     img = Image.fromarray(drawing_array, 'RGB')
     img.save('./../outputs/output.png')
 
@@ -115,7 +109,7 @@ async def process_image(image: str, fake_backend: bool = True):
     # Read Image in RGB order
     encoded_drawing = image.get('data')
     encoded_drawing_array = np.array(Image.open(io.BytesIO(base64.b64decode(encoded_drawing.split(",", 1)[0]))))
-    encoded_drawing_colored_array = change_values_inside_polygon(encoded_drawing_array, image.get('polygon'), image.get('color'), image.get('color2'))
+    encoded_drawing_colored_array = change_values_inside_polygon(encoded_drawing_array, image.get('polygon'))
 
     if fake_backend:
         return {"status": "Processing completed", "result": encoded_image}

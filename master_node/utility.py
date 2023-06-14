@@ -204,7 +204,7 @@ async def image_to_json(image_base64: str):
 
     return {"status": "success", "result": location_category}
 
-def change_values_inside_polygon(np_array, points:list, floor_color: list, void_color: list):
+def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 195, 14], void_color: list=[60, 37, 97], walls_color: list=[245, 52, 50]):
     """
     Change the values inside a polygon to a given value and the values outside to another given value.
     :param np_array: The numpy array to change the values of.
@@ -213,8 +213,22 @@ def change_values_inside_polygon(np_array, points:list, floor_color: list, void_
     :param void_color: The value to change the values outside the polygon to.
     :return: The numpy array with the values changed.
     """
+    mid_points = []
+    door_points = []
+    window_points = []
+    wall_points = []
+    for i in range(0, len(points)):
+        mid_points.append([points[i]['x1'], points[i]['y1']])
+        mid_points.append([points[i]['x1'], points[i]['y2']])
+        if points[i]['type'] == 'door':
+            door_points.append([points[i]['x1'], points[i]['y1']])
+            door_points.append([points[i]['x1'], points[i]['y2']])
+        elif points[i]['type'] == 'window':
+            window_points.append([points[i]['x1'], points[i]['y1']])
+            window_points.append([points[i]['x1'], points[i]['y2']])
+
     # Calculate the inner and outer polygons
-    inside_points, outside_points = calculate_inner_outer_polygons(points, 6)
+    inside_points, outside_points = calculate_inner_outer_polygons(mid_points, 10)
 
     # Create a path from the polygon points
     path = mpl_path.Path(inside_points)
@@ -229,12 +243,12 @@ def change_values_inside_polygon(np_array, points:list, floor_color: list, void_
     points = np.vstack((x_grid.flatten(), y_grid.flatten())).T
     
     # Check if each point is inside the polygon
-    mask = path.contains_points(points).reshape(rows, cols)
+    floor_mask = path.contains_points(points).reshape(rows, cols)
     
     # Change values inside the polygon to x and outside to y
-    np_array[mask] = floor_color
+    np_array[floor_mask] = floor_color
 
-        # Create a path from the polygon points
+    # Create a path from the polygon points
     path = mpl_path.Path(outside_points)
     
     # Get the shape of the input np_array
@@ -247,8 +261,10 @@ def change_values_inside_polygon(np_array, points:list, floor_color: list, void_
     points = np.vstack((x_grid.flatten(), y_grid.flatten())).T
     
     # Check if each point is inside the polygon
-    mask = path.contains_points(points).reshape(rows, cols)
+    void_mask = path.contains_points(points).reshape(rows, cols)
     
-    np_array[~mask] = void_color
+    np_array[~void_mask] = void_color
+
+    np_array[void_mask==~floor_mask] = walls_color
 
     return np_array

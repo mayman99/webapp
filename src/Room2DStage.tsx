@@ -193,7 +193,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage, setInitPoi
               <Rect
                 width={512}
                 height={512}
-                fill={RGBtoHex(DEFAULT_SETTINGS.floorColor)}
+                fill="white"
               />
             </Layer>
             {/* background grid image for guidance
