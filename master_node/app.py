@@ -14,6 +14,7 @@ from sklearn.cluster import KMeans
 import numpy as np
 import matplotlib.pyplot as plt
 import csv
+from io import BytesIO
 
 import json
 import math
@@ -69,18 +70,16 @@ async def upload_points(points: dict):
     image_task = asyncio.create_task(process_points(points))
     image_result = await asyncio.gather(image_task)
 
-    print(image_result)
+    image_result = image_result[0]["result"]
 
-    # encoded_image = image_result[0]["result"]
+    json_task = asyncio.create_task(image_to_json(image_result))
+    json_result = await asyncio.gather(json_task)
 
-    # json_task = asyncio.create_task(image_to_json(encoded_image))
-    # json_result = await asyncio.gather(json_task)
-
-    # print(json_result)
+    print(json_result)
 
     return {
         "status": "Processing started",
-        # "result": image_result
+        "result": image_result
     }
 
 @app.websocket("/progress/{image_name}")
@@ -94,16 +93,64 @@ async def websocket_endpoint(websocket: WebSocket, image_name: str):
     # Close the websocket connection
     await websocket.close()
 
-async def process_points(response: str, fake_backend: bool = True):
+async def process_points(response: str, fake_backend: bool = False):
+
+    def pil_to_base64(pil_image):
+        with BytesIO() as stream:
+            pil_image.save(stream, "PNG", pnginfo=None)
+            base64_str = str(base64.b64encode(stream.getvalue()), "utf-8")
+            return "data:image/png;base64," + base64_str
+
     # Read Image in RGB order
     points = response.get('data')
     empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
     drawing_array = change_values_inside_polygon(empty_drawing_array, points)
     img = Image.fromarray(drawing_array, 'RGB')
-    img.save('./../outputs/output.png')
 
-    # Return a completion message
-    return {"status": "Processing completed", "result": img}
+    if fake_backend:
+        return {"status": "Processing completed", "result": img}
+    else:
+        # image_bytes = img.tobytes()
+        # base64_data = 'data:image/png;base64,'
+        # base64_data += base64.b64encode(image_bytes).decode("utf-8")
+        # A1111 payload
+        payload = {
+            "init_images": [pil_to_base64(img)],
+            "prompt": "segmentation map, orthographic view, furnished apartment, Bedroom,floor, nightstand, dressing table, bookcase / jewelry armoire, king-size bed  <lora:bedrooms_6000_converted:1>",
+            "cfg_scale": 7.5,
+            "width": 512,
+            "height": 512,
+            # "alwayson_scripts": {
+                # "controlnet":{
+                #     "args":[
+                #         {
+                #         "input_image": encoded_image,
+                #         "module":"mlsd",
+                #         "model":"control_v11p_sd15_mlsd [aca30ff0]",
+                #         "weight":1
+                #         }
+                #     ]
+                # }
+            # }
+        }
+        # Make a POST request to the stable diffusion API
+        response = requests.post(SD_API_URL, json=payload)
+        # Read results
+        r = response.json()
+        result = r['images'][0]
+        image = Image.open(io.BytesIO(base64.b64decode(result.split(",", 1)[0])))
+        image.save('./../outputs/output.png')
+        print('after saving image')
+    
+        if response.status_code == 200:
+            # Processing successful, obtain the result and send progress updates
+            result = response.content  # Assuming the API returns the processed image
+            # Process the result and send progress updates, e.g., in chunks
+            # for chunk in process_result_chunks(result):
+            #     await websocket.send_text(chunk)
+
+        # Return a completion message
+        return {"status": "Processing completed", "result": image}
 
 async def process_image(image: str, fake_backend: bool = True):
     # Read Image in RGB order

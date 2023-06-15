@@ -36,7 +36,7 @@ def calculate_inner_outer_polygons(polygon, buffer_distance):
     
     return inner_polygon, outer_polygon
 
-async def image_to_json(image_base64: str):
+async def image_to_json(image):
 
     # paths
     front_3d_csv_path = 'C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv'
@@ -147,9 +147,9 @@ async def image_to_json(image_base64: str):
         
         return cat_to_id, id_to_cat
 
-    image = base64_to_cv2(image_base64)
-    # Load meta data
-    cat_to_id, id_to_cat  = get_model_info()
+    image = np.array(image) 
+    cv2.imwrite("./../outputs/image.jpg", image)
+    _, id_to_cat  = get_model_info()
     points = np.load(point_path)
 
     # Erroding
