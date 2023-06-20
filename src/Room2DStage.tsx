@@ -70,7 +70,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage, setInitPoi
 
   const handleExport = () => {
     const uri : String = stageRef.current.toDataURL();
-    downloadURI(uri, 'initimage.png');
+    // downloadURI(uri, 'initimage.png');
     const point = setDrawingPoints();
     setInitPoints(point);
     // setInitImage(uri);
@@ -205,7 +205,7 @@ const Room2DStage = ({ setAppState, setRoomKeySegments, setInitImage, setInitPoi
                 <Line
                   key={i}
                   points={line.points}
-                  stroke={RGBtoHex(DEFAULT_SETTINGS.wallsColor)}
+                  stroke="#000000"
                   strokeWidth={10}
                   tension={0.5}
                   lineCap="round"
