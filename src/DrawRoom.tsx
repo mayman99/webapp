@@ -49,9 +49,7 @@ export type RoomKeySegment = {
 };
 
 export type Model3D = {
-    x: number,
-    y: number,
-    z: number,
+    position: number[],
     rot: number,
     path: string,
 };
@@ -84,11 +82,16 @@ function DrawRoom() {
     React.useEffect(() => {
         async function setData(data) {
             const models: Model3D[] = [];
-            for (const key in data['result']) {
-                if (data['result'].hasOwnProperty(key)) {
-                    const positions = data['result'][key];
-                    for (let i = 0; i < positions.length; i++) {
-                        models.push({ path: key, x: positions[i][0], y: positions[i][1], z: 0, rot: 0 });
+            const results_array = data['result'][0]['result'];	
+            console.log(results_array);
+            for (const result_dict of results_array) {
+                console.log(result_dict);
+                const path = result_dict['path'];
+                console.log(path);
+                if (path){
+                    const locations = result_dict['locations'];
+                    for (let i = 0; i < locations.length; i++) {
+                        models.push({ path: path, position: [locations[i][0]/10, locations[i][0]/10, 0] , rot: 0 });
                     }
                 }
             }
@@ -148,7 +151,7 @@ function DrawRoom() {
         if (initPoints.length > 0)
             postInitPoints();
 
-    }, [initImage, initPoints]);
+    }, [initImage, initPoints, setModels]);
 
     return (
         <>
