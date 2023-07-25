@@ -54,6 +54,13 @@ def find_objects_locs(image_array, weights_path, image_size=512):
         # y = abs(y - image_size)
         # y2 = abs(y2 - image_size)
         # image_box = image_array[int(y):int(y2), int(x):int(x2)]
+
+        # crop the image given the box, and pad the cropped image to be bigger
+        x = 0 if x < 10 else x - 10
+        y = 0 if y < 10 else y - 10
+        x2 = image_size if x2 > image_size - 10 else x2 + 10
+        y2 = image_size if y2 > image_size - 10 else y2 + 10
+
         cropped_image = image.crop((x, y, x2, y2))
         cropped_images.append(cropped_image)
         if DEBUG:
@@ -71,7 +78,8 @@ def find_objects_locs(image_array, weights_path, image_size=512):
     orientations = find_object_ori(cropped_images, "./weights/cifar_net.pth")
     # update orientations in the results
     for i in range(len(results)):
-        results[i]["orientation"] = orientations[i]
+        # rescale objects orientations
+        results[i]["orientation"] = orientations[i]*10
 
     return results
 

@@ -19,7 +19,7 @@ from io import BytesIO
 import json
 import math
 
-from utility import image_to_json
+from utility import image_to_json_classic, image_to_json_dl
 from utility import change_values_inside_polygon
 
 app = FastAPI()
@@ -28,12 +28,17 @@ app = FastAPI()
 SD_API_URL = "http://127.0.0.1:7860/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
 SD_API_URL_TXT2IMG = "http://127.0.0.1:7860/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
 
+SD_API_URL = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
+SD_API_URL_TXT2IMG = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
+
 # Configure CORS
 origins = [
     "http://localhost",
     "http://localhost:8000",
     "http://localhost:3000",
-    "https://github.com/"
+    "https://github.com/",
+    "http://127.0.0.1:7860/sdapi/v1/img2img",
+    "http://127.0.0.1:7860/sdapi/v1/txt2img"
 ]
 
 app.add_middleware(
@@ -44,42 +49,45 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.post("/upload-image/")
-async def upload_image(image: dict):
-    # Start the processing script asynchronously
-    image_task = asyncio.create_task(process_image(image))
-    image_result = await asyncio.gather(image_task)
+# Deprecated in favor of upload_points endpoint
+# @app.post("/upload-image/")
+# async def upload_image(image: dict):
+#     # Start the processing script asynchronously
+#     image_task = asyncio.create_task(process_image(image))
+#     image_result = await asyncio.gather(image_task)
 
-    print(image_result)
+#     print(image_result)
 
-    encoded_image = image_result[0]["result"]
+#     encoded_image = image_result[0]["result"]
 
-    json_task = asyncio.create_task(image_to_json(encoded_image))
-    json_result = await asyncio.gather(json_task)
+#     json_task = asyncio.create_task(image_to_json_dl(encoded_image))
+#     json_result = await asyncio.gather(json_task)
 
-    print(json_result)
+#     print(json_result)
 
-    return {
-        "status": "Processing started",
-        "result": json_result
-    }
+#     return {
+#         "status": "Processing started",
+#         "result": json_result
+#     }
 
 @app.post("/upload-points/")
 async def upload_points(points: dict):
+    fake_ai_backend = False
+
     # Start the processing script asynchronously
-    image_task = asyncio.create_task(process_points(points))
+    image_task = asyncio.create_task(process_points(points, fake_ai_backend))
     image_result = await asyncio.gather(image_task)
 
     image_result = image_result[0]["result"]
 
-    json_task = asyncio.create_task(image_to_json(image_result))
+    json_task = asyncio.create_task(image_to_json_dl(image_result))
     json_result = await asyncio.gather(json_task)
 
-    print(json_result)
+    print('json_result', json_result)
 
     return {
-        "status": "Processing started",
-        "result": image_result
+        "status": "Processing Finished",
+        "result": json_result
     }
 
 @app.websocket("/progress/{image_name}")
@@ -106,6 +114,7 @@ async def process_points(response: str, fake_backend: bool = False):
     empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
     drawing_array = change_values_inside_polygon(empty_drawing_array, points)
     img = Image.fromarray(drawing_array, 'RGB')
+    img.save('init.png')
 
     if fake_backend:
         return {"status": "Processing completed", "result": img}
@@ -116,22 +125,23 @@ async def process_points(response: str, fake_backend: bool = False):
         # A1111 payload
         payload = {
             "init_images": [pil_to_base64(img)],
-            "prompt": "segmentation map, orthographic view, furnished apartment, Bedroom,floor, nightstand, dressing table, bookcase / jewelry armoire, king-size bed  <lora:bedrooms_6000_converted:1>",
-            "cfg_scale": 7.5,
+            "prompt": "segmentation map, orthographic view, with camera scale of 6.0 furnished apartment, Bedroom, king-size bed, wardrobe, dressing table <lora:pytorch_model_converted:1>",
+            "cfg_scale": 7,
             "width": 512,
             "height": 512,
-            # "alwayson_scripts": {
-                # "controlnet":{
-                #     "args":[
-                #         {
-                #         "input_image": encoded_image,
-                #         "module":"mlsd",
-                #         "model":"control_v11p_sd15_mlsd [aca30ff0]",
-                #         "weight":1
-                #         }
-                #     ]
-                # }
-            # }
+            "denoising_strength": 0.8,
+            "alwayson_scripts": {
+                "controlnet":{
+                    "args":[
+                        {
+                        "input_image": pil_to_base64(img),
+                        "module":"mlsd",
+                        "model":"control_v11p_sd15_mlsd [aca30ff0]",
+                        "weight":1
+                        }
+                    ]
+                }
+            }
         }
         # Make a POST request to the stable diffusion API
         response = requests.post(SD_API_URL, json=payload)
@@ -139,7 +149,7 @@ async def process_points(response: str, fake_backend: bool = False):
         r = response.json()
         result = r['images'][0]
         image = Image.open(io.BytesIO(base64.b64decode(result.split(",", 1)[0])))
-        image.save('./../outputs/output.png')
+        image.save('./output.png')
         print('after saving image')
     
         if response.status_code == 200:
@@ -150,7 +160,7 @@ async def process_points(response: str, fake_backend: bool = False):
             #     await websocket.send_text(chunk)
 
         # Return a completion message
-        return {"status": "Processing completed", "result": image}
+        return {"status": "Step one completed", "result": image}
 
 async def process_image(image: str, fake_backend: bool = True):
     # Read Image in RGB order
