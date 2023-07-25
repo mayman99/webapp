@@ -43,7 +43,8 @@ export default function Room3DStage({ setAppState, RoomKeySegments, models }: Ed
 
 function Model({ path, position, rotation }: { path: string, position: number[], rotation: number }) {
     const gltf = useLoader(GLTFLoader, path);
-    const pos_vect = new THREE.Vector3(position[0] - 30, position[1], -4);
+    const pos_vect = new THREE.Vector3(position[0], position[1], -4);
+    console.log(path, position, rotation);
 
     return (
         <group >

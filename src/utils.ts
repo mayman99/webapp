@@ -47,6 +47,12 @@ export function pixelLocationTo3DLocation(x: number, y: number, scale: number, i
     // x, y is the pixel location
     // unmirror y axis
     y = Math.abs(y - image_size);
+    // scale to 0-1
+    // x = x / image_size;
+    // y = y / image_size;
+    // x = (x*450) + 20;
+    // y = (y*450) + 20;
+    x -= 256;
 
     // 0, 0 is the top left corner
     // 0, 0 cooresponds to (0, scale) in 3D

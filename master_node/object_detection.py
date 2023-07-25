@@ -45,7 +45,7 @@ def find_objects_locs(image_array, weights_path, image_size=512):
         inputs = image_processor(images=image, return_tensors="pt")
         outputs = model(**inputs)
         target_sizes = torch.tensor([image.size[::-1]])
-        model_results = image_processor.post_process_object_detection(outputs, threshold=0.50, target_sizes=target_sizes)[0]
+        model_results = image_processor.post_process_object_detection(outputs, threshold=0.25, target_sizes=target_sizes)[0]
 
     for score, label, box in zip(model_results["scores"], model_results["labels"], model_results["boxes"]):
         box = [round(i, 2) for i in box.tolist()]
@@ -82,7 +82,6 @@ def find_objects_locs(image_array, weights_path, image_size=512):
         results[i]["orientation"] = orientations[i]*10
 
     return results
-
 
 def find_single_ori(image, weights_path:str="./weights/cifar_net.pth"):
     """

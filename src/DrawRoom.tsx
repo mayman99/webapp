@@ -90,7 +90,7 @@ function DrawRoom() {
             for (let index = 0; index < results_array.length; index++) {
                 const obj = results_array[index];
                 // convert degrees to radians
-                const orientation = obj['orientation'] * Math.PI / 180;
+                const orientation = obj['orientation'] * Math.PI / 360;
                 const cartesian_loc = pixelLocationTo3DLocation(obj['location'][0], obj['location'][1], scale);
                 const path = obj['path'];
                 console.log("cart loc of ", obj['location'], "given scale of 6, ", cartesian_loc)

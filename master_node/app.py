@@ -28,7 +28,7 @@ app = FastAPI()
 SD_API_URL = "http://127.0.0.1:7860/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
 SD_API_URL_TXT2IMG = "http://127.0.0.1:7860/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
 
-SD_API_URL = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
+SD_API_URL = "https://68f1-35-231-50-107.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
 SD_API_URL_TXT2IMG = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
 
 # Configure CORS
@@ -72,7 +72,7 @@ app.add_middleware(
 
 @app.post("/upload-points/")
 async def upload_points(points: dict):
-    fake_ai_backend = False
+    fake_ai_backend = True
 
     # Start the processing script asynchronously
     image_task = asyncio.create_task(process_points(points, fake_ai_backend))
@@ -109,16 +109,17 @@ async def process_points(response: str, fake_backend: bool = False):
             base64_str = str(base64.b64encode(stream.getvalue()), "utf-8")
             return "data:image/png;base64," + base64_str
 
-    # Read Image in RGB order
-    points = response.get('data')
-    empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
-    drawing_array = change_values_inside_polygon(empty_drawing_array, points)
-    img = Image.fromarray(drawing_array, 'RGB')
-    img.save('init.png')
-
     if fake_backend:
+        img = Image.open("./output.png")
         return {"status": "Processing completed", "result": img}
     else:
+        # Read Image in RGB order
+        points = response.get('data')
+        empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
+        drawing_array = change_values_inside_polygon(empty_drawing_array, points)
+        img = Image.fromarray(drawing_array, 'RGB')
+        img.save('init.png')
+
         # image_bytes = img.tobytes()
         # base64_data = 'data:image/png;base64,'
         # base64_data += base64.b64encode(image_bytes).decode("utf-8")
