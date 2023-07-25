@@ -19,6 +19,7 @@ import json
 import math
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
+from object_detection import find_objects_locs
 
 def calculate_inner_outer_polygons(polygon, buffer_distance):
     # Create a Shapely polygon object
@@ -36,7 +37,59 @@ def calculate_inner_outer_polygons(polygon, buffer_distance):
     
     return inner_polygon, outer_polygon
 
-async def image_to_json(image):
+def get_model_path(category:str, base_online_url:str, online_models_list:list, models_info_data:dict={}, online:bool=True):
+    """
+    Given a cetegory return a 3d obj model path given the data in models_info_data
+    """
+    if online:
+        for model_name in online_models_list:
+            if model_name in category or category in model_name:
+                return base_online_url + "/" + model_name + '/raw_model.glb'    
+        return base_online_url + "/" + "nightstand" + '/raw_model.glb'
+    else:
+        for model_id in models_info_data.keys():
+            if "category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
+                if category in models_info_data[model_id]["category"].lower():
+                    return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
+            elif "super-category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
+                if category in models_info_data[model_id]["super-category"].lower():
+                    return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
+        return None
+        
+async def image_to_json_dl(image):
+    # TODO: don't hard code the paths
+    id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv"
+    weights_path = "./weights/yolos_finetuned_cones_scaled_bedroom_obj_detection"
+    base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
+    models_dir = "./../models"
+
+    # read avaliable models from the models dir
+    models_list = os.listdir(models_dir)
+
+    # results is a dictionary with format:
+    # [
+    #     {"location": [x, y], "label": category_id, "orientation": z_orientation},
+    # ]
+    results = {}
+    id2label = {}
+    image = np.array(image)
+    with open(id_mapping_path, 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            id2label[row["id"]] = row["name"]
+    results = find_objects_locs(image, weights_path)
+    # for ecah result, add the model path using the result label and the id2label dictionary
+    for result in results:
+        result["path"] = get_model_path(id2label[str(result["label"])], base_online_url, models_list)
+
+    if len(results) == 0:
+        return {"status": "fail", "result": results}
+
+    print(results)
+    return {"status": "success", "result": results}
+
+
+async def image_to_json_classic(image):
 
     # paths
     front_3d_csv_path = 'C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv'
@@ -115,27 +168,6 @@ async def image_to_json(image):
                 return idx
         return len(wcss)
 
-    def get_model_path(category:str, models_info_data:dict, online:bool=True):
-        """
-        Given a cetegory return a 3d obj model path given the data in models_info_data
-        """
-        if online:
-            base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
-            online_models_list = ["bed", "wardrobe", "nightstand"]
-            for model_name in online_models_list:
-                if "category" in model_name:
-                    return base_online_url + model_name + 'raw_model.glb'    
-            return None
-        else:
-            for model_id in models_info_data.keys():
-                if "category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
-                    if category in models_info_data[model_id]["category"].lower():
-                        return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
-                elif "super-category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
-                    if category in models_info_data[model_id]["super-category"].lower():
-                        return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
-            return None
-
     def get_model_info():   
         id_to_cat = {}
         cat_to_id = {}
@@ -147,7 +179,7 @@ async def image_to_json(image):
         
         return cat_to_id, id_to_cat
 
-    image = np.array(image) 
+    image = np.array(image)
     cv2.imwrite("./../outputs/image.jpg", image)
     _, id_to_cat  = get_model_info()
     points = np.load(point_path)
@@ -165,26 +197,32 @@ async def image_to_json(image):
     img_arr_reshape = np.reshape(img_arr, (height * width, 3))
 
     # Use elbow method to determine optimal number of clusters
-    wcss = []
-    for i in range(1, 20):
-        kmeans = KMeans(n_clusters=i, n_init=1)
-        kmeans.fit(img_arr_reshape)
-        wcss.append(kmeans.inertia_)
+    # wcss = []
+    # for i in range(1, 20):
+    #     kmeans = KMeans(n_clusters=i, n_init=1)
+    #     kmeans.fit(img_arr_reshape)
+    #     wcss.append(kmeans.inertia_)
 
-    clusters_count = clusters_num(wcss)
+    # clusters_count = clusters_num(wcss)
+    # kmeans = KMeans(n_clusters=clusters_count)
+
+    clusters_count = 5
     kmeans = KMeans(n_clusters=clusters_count)
     kmeans.fit(img_arr_reshape)
     labels = kmeans.predict(img_arr_reshape)
     labels_reshape = np.reshape(labels, (height, width))
 
-    location_category = {}
-    params = cv2.SimpleBlobDetector_Params()
-    detector = cv2.SimpleBlobDetector_create(params)
+    results = []
 
     for obj_ in range(clusters_count):
-        obj_id = find_object_id(labels_reshape == obj_, img_arr, points)
+        location_category = {}
+        mask = labels_reshape == obj_
+        count = np.count_nonzero(mask == 1)
+        if count < 5000:
+            continue
+
+        obj_id = find_object_id(mask, img_arr, points)
         obj_cat = id_to_cat[str(obj_id)].lower()
-        print(obj_cat)
         # Output walls in a seprate file     
         if 'wall' in obj_cat:
             np.save(os.path.join(output_json, obj_cat + img_name), labels_reshape == obj_)
@@ -194,17 +232,64 @@ async def image_to_json(image):
             continue
 
         # Write the objects in renderable_objects to a json file
-        locs = find_location(labels_reshape == obj_, img_arr)
-        if len(locs>1):
-            #TODO remove the first centroid because it is empty most of the time
-            location_category[get_model_path(obj_cat, models_info_data)] = locs[1:].tolist()
+        locs = find_location(mask, img_arr)
+        # if len(locs>1):
+        #     #TODO remove the first centroid because it is empty most of the time
+        #     location_category[get_model_path(obj_cat, models_info_data)] = locs[1:].tolist()
 
-    # with open(os.path.join(output_json, img_name +'.json'), "w") as f:    
-    #     json.dump(location_category, f)
+        #     #TODO remove the first centroid because it is empty most of the time
+        print(obj_cat, locs)
+        location_category["path"] = get_model_path(obj_cat, models_info_data, online=True)
+        location_category["locations"] = locs.tolist()
 
-    return {"status": "success", "result": location_category}
+        results.append(location_category)
 
-def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 195, 14], void_color: list=[60, 37, 97], walls_color: list=[245, 52, 50]):
+    print(results)
+
+    return {"status": "success", "result": results}
+
+def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 195, 14], void_color: list=[60, 37, 97], walls_color: list=[245, 52, 50], doors_color: list=[209, 89, 233], windows_color: list=[236, 239, 159]):
+    def change_rectangle_values(array, p1, p4, new_value):
+        # Change the values inside the rectangle defined by (x1, y1) and (x2, y2) to the new_value
+        x1, y1 = p1
+        x2, y2 = p4
+        array[x1:x2+1, y1:y2+1] = new_value
+        return array
+
+    def find_parallel_points(point1, point2, buffer=5):
+        x1 = int(point1[0])
+        y1 = int(point1[1])
+        x2 = int(point2[0])
+        y2 = int(point2[1])
+
+        # # Calculate the slope of the given line
+        slope = (y2 - y1) / (x2 - x1)
+
+        # # Determine whether to add or subtract 2 units from the y-coordinate
+        # if slope >= 0:
+        #     y_offset = buffer
+        # else:
+        #     y_offset = -buffer
+
+        # # Create two new points parallel to the given line, two units apart
+        # new_point1 = (x1, y1 + y_offset)
+        # new_point2 = (x2, y2 + y_offset)
+
+        perpendicular_slope = -1 / slope
+
+        # Determine whether to add or subtract 2 units from the y-coordinate
+        if perpendicular_slope >= 0:
+            y_offset = -buffer
+        else:
+            y_offset = buffer
+
+        new_point1 = (x1, y1 - y_offset)
+        new_point2 = (x2, y2 - y_offset)
+        new_point3 = (x1, y1 + y_offset)
+        new_point4 = (x2, y2 + y_offset)
+
+        return new_point1, new_point2, new_point3, new_point4
+
     """
     Change the values inside a polygon to a given value and the values outside to another given value.
     :param np_array: The numpy array to change the values of.
@@ -218,14 +303,15 @@ def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 
     window_points = []
     wall_points = []
     for i in range(0, len(points)):
+        # if points[i]['type'] == 'wall':
         mid_points.append([points[i]['x1'], points[i]['y1']])
-        mid_points.append([points[i]['x1'], points[i]['y2']])
+        mid_points.append([points[i]['x2'], points[i]['y2']])
         if points[i]['type'] == 'door':
-            door_points.append([points[i]['x1'], points[i]['y1']])
-            door_points.append([points[i]['x1'], points[i]['y2']])
+            door_points.append([int(points[i]['x1']), int(points[i]['y1'])])
+            door_points.append([int(points[i]['x2']), int(points[i]['y2'])])
         elif points[i]['type'] == 'window':
-            window_points.append([points[i]['x1'], points[i]['y1']])
-            window_points.append([points[i]['x1'], points[i]['y2']])
+            window_points.append([int(points[i]['x1']), int(points[i]['y1'])])
+            window_points.append([int(points[i]['x2']), int(points[i]['y2'])])
 
     # Calculate the inner and outer polygons
     inside_points, outside_points = calculate_inner_outer_polygons(mid_points, 10)
@@ -266,5 +352,70 @@ def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 
     np_array[~void_mask] = void_color
 
     np_array[void_mask==~floor_mask] = walls_color
+
+
+    # color points inside doors and windows
+    # Calculate the inner and outer polygons
+
+    if (len(door_points)> 0):
+        # p1, p2, p3, p4 = find_parallel_points(door_points[0], door_points[1], 20)
+        
+        # increase the thickness of the door using the two points used to define the door
+        if door_points[0][0]-door_points[1][0] > door_points[0][1]-door_points[1][1]:
+            # the door is more horizontal than vertical
+            # define the four points that will be used to increase the thickness of the door
+            p1 = (door_points[0][0], door_points[0][1]-20)
+            p2 = (door_points[0][0], door_points[0][1]+20)
+            p3 = (door_points[1][0], door_points[1][1]-20)
+            p4 = (door_points[1][0], door_points[1][1]+20)
+            np_array = change_rectangle_values(np_array, p1, p4, doors_color)
+        else:
+            # the door is more vertical than horizontal
+            # define the four points that will be used to increase the thickness of the door
+            p1 = (door_points[0][0]-20, door_points[0][1])
+            p2 = (door_points[0][0]+20, door_points[0][1])
+            p3 = (door_points[1][0]-20, door_points[1][1])
+            p4 = (door_points[1][0]+20, door_points[1][1])
+            np_array = change_rectangle_values(np_array, p1, p4, doors_color)
+
+        # Create a path from the polygon points
+    #     path = mpl_path.Path(find_parallel_points(door_points[0], door_points[1], 20))
+        
+    #     # Get the shape of the input np_array
+    #     rows, cols, _ = np_array.shape
+        
+    #     # Create a grid of coordinates
+    #     x_grid, y_grid = np.meshgrid(np.arange(cols), np.arange(rows))
+        
+    #     # Flatten the grid coordinates
+    #     points = np.vstack((x_grid.flatten(), y_grid.flatten())).T
+        
+    #     # Check if each point is inside the polygon
+    #     door_mask = path.contains_points(points).reshape(rows, cols)
+        
+    #     # Change values inside the polygon to x and outside to y
+    #     np_array[door_mask] = doors_color
+
+
+
+    # if (len(window_points)> 0):
+
+    #     # Create a path from the polygon points
+    #     path = mpl_path.Path(find_parallel_points(window_points[0], window_points[1], 20))
+        
+    #     # Get the shape of the input np_array
+    #     rows, cols, _ = np_array.shape
+        
+    #     # Create a grid of coordinates
+    #     x_grid, y_grid = np.meshgrid(np.arange(cols), np.arange(rows))
+        
+    #     # Flatten the grid coordinates
+    #     points = np.vstack((x_grid.flatten(), y_grid.flatten())).T
+        
+    #     # Check if each point is inside the polygon
+    #     window_mask = path.contains_points(points).reshape(rows, cols)
+        
+    #     # Change values inside the polygon to x and outside to y
+    #     np_array[window_mask] = windows_color 
 
     return np_array
