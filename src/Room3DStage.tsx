@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { memo, useRef, forwardRef } from 'react'
+import { memo, useRef, forwardRef, useEffect } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { Grid, useGLTF, Center, AccumulativeShadows, RandomizedLight, Environment, CameraControls, PerspectiveCamera, Circle } from '@react-three/drei'
 import { useControls, button, buttonGroup, folder } from 'leva'
@@ -12,6 +12,7 @@ import { RoomKeySegment } from './DrawRoom'
 import Empty3DRoom from './Empty3DRoom'
 import { Suspense } from "react";
 import { Model3D } from './DrawRoom'
+
 
 const { DEG2RAD } = THREE.MathUtils
 
@@ -26,23 +27,58 @@ export default function Room3DStage({ setAppState, RoomKeySegments, models }: Ed
         <Canvas style={{ width: "90vw", height: "90vh" }} shadows>
             <Scene setAppState={setAppState} models={models} RoomKeySegments={RoomKeySegments} />
             <Suspense fallback={null}>
-                {models.map((model) => (
-                    <Model path={model.path} />
+                {models.map((model, idx) => (
+                    <Model path={model.path} key={idx} position={model.position} rotation={model.rot} />
                 ))}
             </Suspense>
+            <gridHelper args={[100, 20]} up={[-1, 0, 0]} rotation={[1.56, 0, 0]} position={[0, 0, 0]} />
             <axesHelper args={[5]} />
         </Canvas>
     );
 }
 
-function Model({ path }: { path: string }) {
+{/* <TransformControls key={idx}>
+<Model path={model.path} key={idx} position={model.position} rotation={model.rot} />
+</TransformControls> */}
+
+function Model({ path, position, rotation }: { path: string, position: number[], rotation: number }) {
     const gltf = useLoader(GLTFLoader, path);
+    const pos_vect = new THREE.Vector3(position[0] - 30, position[1], -4);
+
     return (
-        <>
-            <primitive object={gltf.scene} scale={1.2} position={[0, 0, 0]} />
-        </>
+        <group >
+            <primitive object={gltf.scene} position={pos_vect} rotation={[0, 0, rotation]} scale={[5, 5, 5]} />
+        </group>
     );
 }
+
+// function Keen() {
+//     const orbit = useRef<typeof OrbitControls>(null);
+//     const transform = useRef<typeof TransformControls>(null);
+//     const mode = useControl("mode", { type: "select", items: ["scale", "rotate", "translate"] });
+//     const { nodes, materials } = useLoader(GLTFLoader, "/scene.gltf");
+
+//     useEffect(() => {
+//       if (transform.current) {
+//         const controls = transform.current;
+//         controls.setMode(mode);
+//         const callback = (event: { value: boolean }) => (orbit.current.enabled = !event.value);
+//         controls.addEventListener("dragging-changed", callback);
+//         return () => controls.removeEventListener("dragging-changed", callback);
+//       }
+//     }, [mode]);
+
+//     return (
+//       <>
+//         <TransformControls>
+//           <group position={[0, -7, 0]} rotation={[-Math.PI / 2, 0, 0]} dispose={null}>
+//             <mesh material={materials["Scene_-_Root"]} geometry={nodes.mesh_0.geometry} castShadow receiveShadow />
+//           </group>
+//         </TransformControls>
+//         <OrbitControls />
+//       </>
+//     );
+//   }
 
 const Scene = forwardRef<THREE.Mesh, Edit3DCanvasProps>((props, ref) => {
     const { setAppState, RoomKeySegments, models } = props;
@@ -162,7 +198,6 @@ const Scene = forwardRef<THREE.Mesh, Edit3DCanvasProps>((props, ref) => {
                 <Center top>
                     <Empty3DRoom RoomKeySegments={RoomKeySegments} ref={meshRef} />
                 </Center>
-                <Ground />
                 <Shadows />
                 <CameraControls
                     ref={cameraControlsRef}
@@ -171,13 +206,25 @@ const Scene = forwardRef<THREE.Mesh, Edit3DCanvasProps>((props, ref) => {
                     verticalDragToForward={verticalDragToForward}
                     dollyToCursor={dollyToCursor}
                     infinityDolly={infinityDolly}
-
                 />
                 <Environment preset="city" />
             </group>
         </>
     );
 });
+
+const Floor = () => {
+    const wallsRef = useRef();
+    // Load the wall texture
+    const wallTexture = useLoader(THREE.TextureLoader, '/wall_texture.jpg');
+
+    return (
+        <mesh ref={wallsRef}>
+            <planeGeometry args={[50, 80, 10, 10]} />
+            <meshBasicMaterial map={wallTexture} />
+        </mesh>
+    );
+};
 
 function Ground() {
     const gridConfig = {
@@ -188,11 +235,11 @@ function Ground() {
         sectionThickness: 1,
         sectionColor: '#9d4b4b',
         fadeDistance: 30,
-        fadeStrength: 1,
+        fadeStrength: 0.1,
         followCamera: false,
         infiniteGrid: true
     };
-    return <Grid position={[0, -0.01, 0]} args={[10.5, 10.5]} {...gridConfig} />;
+    return <Grid position={[0, -0.01, 0]} args={[10.5, 10.5]} rotation={[1.56, 0, 0]} {...gridConfig} />;
 }
 
 const Shadows = memo(() => (

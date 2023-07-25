@@ -12,6 +12,7 @@ import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import CircularProgress from '@mui/material/CircularProgress';
 import Room2DStage from './Room2DStage';
 import Room3DStage from './Room3DStage';
+import { pixelLocationTo3DLocation } from './utils';
 const MasterNodeURL = "http://localhost:8000";
 const uploadInitImageURL = MasterNodeURL + "/upload-image";
 const uploadInitPoints = MasterNodeURL + "/upload-points";
@@ -81,20 +82,33 @@ function DrawRoom() {
     // send a post call to server when initImage is changed
     React.useEffect(() => {
         async function setData(data) {
+            const scale = 6.0;
+            console.log('setting scale manually')
             const models: Model3D[] = [];
             const results_array = data['result'][0]['result'];	
             console.log(results_array);
-            for (const result_dict of results_array) {
-                console.log(result_dict);
-                const path = result_dict['path'];
-                console.log(path);
-                if (path){
-                    const locations = result_dict['locations'];
-                    for (let i = 0; i < locations.length; i++) {
-                        models.push({ path: path, position: [locations[i][0]/10, locations[i][0]/10, 0] , rot: 0 });
-                    }
-                }
+            for (let index = 0; index < results_array.length; index++) {
+                const obj = results_array[index];
+                // convert degrees to radians
+                const orientation = obj['orientation'] * Math.PI / 180;
+                const cartesian_loc = pixelLocationTo3DLocation(obj['location'][0], obj['location'][1], scale);
+                const path = obj['path'];
+                console.log("cart loc of ", obj['location'], "given scale of 6, ", cartesian_loc)
+                models.push({ path: path, position: [cartesian_loc[0], cartesian_loc[1], 0] , rot: orientation });                
             }
+
+            // Classical approach deprecated in favor of NN approach
+            // for (const result_dict of results_array) {
+            //     console.log(result_dict);
+            //     const path = result_dict['path'];
+            //     console.log(path);
+            //     if (path){
+            //         const locations = result_dict['locations'];
+            //         for (let i = 0; i < locations.length; i++) {
+            //             models.push({ path: path, position: [locations[i][0]/10, locations[i][0]/10, 0] , rot: 0 });
+            //         }
+            //     }
+            // }
             console.log(models);
             setModels(models);
         }

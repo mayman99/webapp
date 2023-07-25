@@ -43,6 +43,18 @@ export function img2imgReqBody(initImages: string, mask: string, prompt: string)
     });
 }
 
+export function pixelLocationTo3DLocation(x: number, y: number, scale: number, image_size: number = 512) {
+    // x, y is the pixel location
+    // unmirror y axis
+    y = Math.abs(y - image_size);
+
+    // 0, 0 is the top left corner
+    // 0, 0 cooresponds to (0, scale) in 3D
+    // const x3D = x * scale / image_size;
+    // const y3D = y * scale / image_size;
+    return [x/10, y/10];
+}
+
 // export function replaceColor(ctx, fromColor, toColor) {
 //     const imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
 //     const data = imageData.data;
