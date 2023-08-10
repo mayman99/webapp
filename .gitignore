@@ -11,6 +11,8 @@
 # production
 /build
 
+master_node/__pycache__
+
 # misc
 .DS_Store
 .env.local
