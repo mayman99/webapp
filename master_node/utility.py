@@ -77,6 +77,9 @@ async def image_to_json_dl(image):
         reader = csv.DictReader(csv_file)
         for row in reader:
             id2label[row["id"]] = row["name"]
+    # TODO [EPIC]: integrate ori into object detection network
+    # TODO: it gets the poses, not just locations
+    # TODO: encode oris as one hot encoded, network might not learn well with integer values
     results = find_objects_locs(image, weights_path)
     # for ecah result, add the model path using the result label and the id2label dictionary
     for result in results:
