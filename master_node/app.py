@@ -110,7 +110,7 @@ async def process_points(response: str, fake_backend: bool = False):
             return "data:image/png;base64," + base64_str
 
     if fake_backend:
-        img = Image.open("./output.png")
+        img = Image.open("./299.png")
         return {"status": "Processing completed", "result": img}
     else:
         # Read Image in RGB order
