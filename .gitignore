@@ -23,3 +23,5 @@ master_node/__pycache__
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+master_node/weights/*
