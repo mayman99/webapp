@@ -252,6 +252,14 @@ async def image_to_json_classic(image):
     return {"status": "success", "result": results}
 
 def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 195, 14], void_color: list=[60, 37, 97], walls_color: list=[245, 52, 50], doors_color: list=[209, 89, 233], windows_color: list=[236, 239, 159]):
+    """
+    Change the values inside a polygon to a given value and the values outside to another given value.
+    :param np_array: The numpy array to change the values of.
+    :param points: The points of the polygon.
+    :param floor_color: The value to change the values inside the polygon to.
+    :param void_color: The value to change the values outside the polygon to.
+    :return: The numpy array with the values changed.
+    """
     def change_rectangle_values(array, p1, p4, new_value):
         # Change the values inside the rectangle defined by (x1, y1) and (x2, y2) to the new_value
         x1, y1 = p1
@@ -293,14 +301,6 @@ def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 
 
         return new_point1, new_point2, new_point3, new_point4
 
-    """
-    Change the values inside a polygon to a given value and the values outside to another given value.
-    :param np_array: The numpy array to change the values of.
-    :param points: The points of the polygon.
-    :param floor_color: The value to change the values inside the polygon to.
-    :param void_color: The value to change the values outside the polygon to.
-    :return: The numpy array with the values changed.
-    """
     mid_points = []
     door_points = []
     window_points = []
@@ -356,10 +356,8 @@ def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 
 
     np_array[void_mask==~floor_mask] = walls_color
 
-
     # color points inside doors and windows
     # Calculate the inner and outer polygons
-
     if (len(door_points)> 0):
         # p1, p2, p3, p4 = find_parallel_points(door_points[0], door_points[1], 20)
         
