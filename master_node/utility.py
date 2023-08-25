@@ -55,7 +55,47 @@ def get_model_path(category:str, base_online_url:str, online_models_list:list, m
                 if category in models_info_data[model_id]["super-category"].lower():
                     return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
         return None
-        
+
+async def mmrotate(url, image):
+    """
+    Send the image in a request to the mmrotate API and return objects locations and orientations
+    params:
+    url: the url of the mmrotate API
+    image: the image to send
+    returns:
+    results: list of dictionaries
+    results is in format:
+    {"path": path,"location": [x, y], "label": category_id, "orientation": z_orientation}
+    """
+    id2label = {}
+    id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv"
+    models_dir = "./../models"
+    # read avaliable models from the models dir
+    models_list = os.listdir(models_dir)
+    with open(id_mapping_path, 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            id2label[row["id"]] = row["name"]
+    base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
+
+    res = requests.post(url, files={"data": image})
+    res = res.json()
+    
+    results = []
+
+    for single_res in res:
+        result = {}
+        result["path"] = get_model_path(single_res["class_name"].replace('-', ' '), base_online_url, models_list)
+        result["location"] = [single_res["bbox"][0]/2+single_res["bbox"][2]/2, single_res["bbox"][1]/2+single_res["bbox"][3]/2]
+        result["orientation"] = single_res["bbox"][-1]
+        results.append(result)
+
+    if len(results) == 0:
+        return {"status": "fail", "result": results}
+
+    print(results)
+    return {"status": "success", "result": results}
+
 async def image_to_json_dl(image):
     # TODO: don't hard code the paths
     id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv"

@@ -11,13 +11,14 @@ import numpy as np
 import numpy as np
 from io import BytesIO
 
-from utility import image_to_json_classic, image_to_json_dl
+from utility import image_to_json_classic, image_to_json_dl, mmrotate
 from utility import change_values_inside_polygon
 
 app = FastAPI()
 
 SD_API_URL = "https://68f1-35-231-50-107.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
 SD_API_URL_TXT2IMG = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
+MMROTATE_API_URL = "http://192.168.1.53:8080/predictions/epoch_4"  # Replace with the actual API endpoint URL
 
 # Configure CORS
 origins = [
@@ -40,6 +41,8 @@ app.add_middleware(
 @app.post("/upload-points/")
 async def upload_points(points: dict):
     fake_ai_backend = True
+    # "mmrotate" or "yolo + a valilla cnn"
+    second_stage = "mmrotate"
 
     # Start the processing script asynchronously
     image_task = asyncio.create_task(process_points(points, fake_ai_backend))
@@ -47,7 +50,11 @@ async def upload_points(points: dict):
 
     image_result = image_result[0]["result"]
 
-    json_task = asyncio.create_task(image_to_json_dl(image_result))
+    if second_stage == "mmrotate":
+        json_task = asyncio.create_task(mmrotate(MMROTATE_API_URL, image_result))
+    else:
+        json_task = asyncio.create_task(image_to_json_dl(image_result))
+
     json_result = await asyncio.gather(json_task)
 
     print('json_result', json_result)
@@ -65,7 +72,7 @@ async def process_points(response: str, fake_backend: bool = False):
             return "data:image/png;base64," + base64_str
 
     if fake_backend:
-        img = Image.open("./299.png")
+        img = open("./4.png", 'rb')
         return {"status": "Processing completed", "result": img}
     else:
         # Read Image in RGB order
