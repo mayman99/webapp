@@ -8,7 +8,7 @@ from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 import base64
 import io
-from PIL import Image
+from PIL import Image, ImageDraw
 import os
 import cv2
 import numpy as np
@@ -37,26 +37,33 @@ def calculate_inner_outer_polygons(polygon, buffer_distance):
     
     return inner_polygon, outer_polygon
 
-def get_model_path(category:str, base_online_url:str, online_models_list:list, models_info_data:dict={}, online:bool=True):
+def get_model_path(category:str, base_online_url:str, online_models_list:list, models_info_data:dict={}, mmrotate:bool=True):
     """
     Given a cetegory return a 3d obj model path given the data in models_info_data
     """
-    if online:
+    if mmrotate:
+        for model_name in online_models_list:
+            if model_name in category or category in model_name:
+                return "models/" + model_name + '/raw_model_scaled_x50.glb'    
+        return "models/nightstand" + '/raw_model_scaled_x50.glb'
+    else:
+        # blueprint js folders structure
+        # TODO: don't hard code the paths
         for model_name in online_models_list:
             if model_name in category or category in model_name:
                 return base_online_url + "/" + model_name + '/raw_model.glb'    
         return base_online_url + "/" + "nightstand" + '/raw_model.glb'
-    else:
-        for model_id in models_info_data.keys():
-            if "category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
-                if category in models_info_data[model_id]["category"].lower():
-                    return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
-            elif "super-category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
-                if category in models_info_data[model_id]["super-category"].lower():
-                    return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
-        return None
 
-async def mmrotate(url, image):
+        # for model_id in models_info_data.keys():
+        #     if "category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
+        #         if category in models_info_data[model_id]["category"].lower():
+        #             return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
+        #     elif "super-category" in models_info_data[model_id].keys() and type(models_info_data[model_id]["category"])==str:
+        #         if category in models_info_data[model_id]["super-category"].lower():
+        #             return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
+        # return None
+
+async def mmrotate(url, image, DEBUG=True):
     """
     Send the image in a request to the mmrotate API and return objects locations and orientations
     params:
@@ -85,10 +92,19 @@ async def mmrotate(url, image):
 
     for single_res in res:
         result = {}
-        result["path"] = get_model_path(single_res["class_name"].replace('-', ' '), base_online_url, models_list)
-        result["location"] = [single_res["bbox"][0]/2+single_res["bbox"][2]/2, single_res["bbox"][1]/2+single_res["bbox"][3]/2]
+        result["path"] = get_model_path(single_res["class_name"].replace('-', ' '), base_online_url, models_list, True)
+        result["location"] = [single_res["bbox"][0], single_res["bbox"][1]]
         result["orientation"] = single_res["bbox"][-1]
         results.append(result)
+
+    if DEBUG:
+        # convert image from BufferedReader to PIL image
+        im = Image.open("./10.png")
+        draw = ImageDraw.Draw(im)
+        for r in res:
+            draw.rectangle([r["bbox"][0], r["bbox"][1], r["bbox"][2], r["bbox"][3]], outline="red")
+            draw.text((r["bbox"][0], r["bbox"][1]), r["class_name"].replace('-', ' '), fill="red")
+        im.save("debug.png")
 
     if len(results) == 0:
         return {"status": "fail", "result": results}

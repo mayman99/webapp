@@ -25,6 +25,7 @@ origins = [
     "http://localhost",
     "http://localhost:8000",
     "http://localhost:3000",
+    "http://localhost:1234",
     "https://github.com/",
     "http://127.0.0.1:7860/sdapi/v1/img2img",
     "http://127.0.0.1:7860/sdapi/v1/txt2img"
@@ -65,6 +66,9 @@ async def upload_points(points: dict):
     }
 
 async def process_points(response: str, fake_backend: bool = False):
+    """
+    
+    """
     def pil_to_base64(pil_image):
         with BytesIO() as stream:
             pil_image.save(stream, "PNG", pnginfo=None)
@@ -72,7 +76,7 @@ async def process_points(response: str, fake_backend: bool = False):
             return "data:image/png;base64," + base64_str
 
     if fake_backend:
-        img = open("./4.png", 'rb')
+        img = open("./10.png", 'rb')
         return {"status": "Processing completed", "result": img}
     else:
         # Read Image in RGB order
