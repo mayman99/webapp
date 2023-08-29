@@ -115,18 +115,18 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
             "height": 512,
             "batch_size": batch_size,
             "denoising_strength": 0.8,
-            # "alwayson_scripts": {
-            #     "controlnet":{
-            #         "args":[
-            #             {
-            #             "input_image": pil_to_base64(img),
-            #             "module":"mlsd",
-            #             "model":"control_v11p_sd15_mlsd [aca30ff0]",
-            #             "weight":1
-            #             }
-            #         ]
-            #     }
-            # }
+            "alwayson_scripts": {
+                "controlnet":{
+                    "args":[
+                        {
+                        "input_image": pil_to_base64(img),
+                        "module":"mlsd",
+                        "model":"control_v11p_sd15_mlsd [aca30ff0]",
+                        "weight":1
+                        }
+                    ]
+                }
+            }
         }
         # Make a POST request to the stable diffusion API
         response = requests.post(SD_API_URL, json=payload)
