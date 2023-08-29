@@ -16,7 +16,7 @@ from utility import change_values_inside_polygon
 
 app = FastAPI()
 
-SD_API_URL = "https://68f1-35-231-50-107.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
+SD_API_URL = "http://127.0.0.1:7860/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
 SD_API_URL_TXT2IMG = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
 MMROTATE_API_URL = "http://192.168.1.53:8080/predictions/epoch_4"  # Replace with the actual API endpoint URL
 
@@ -41,7 +41,7 @@ app.add_middleware(
 
 @app.post("/upload-points/")
 async def upload_points(points: dict):
-    fake_ai_backend = True
+    fake_ai_backend = False
     # "mmrotate" or "yolo + a valilla cnn"
     second_stage = "mmrotate"
 
@@ -49,7 +49,7 @@ async def upload_points(points: dict):
     image_task = asyncio.create_task(process_points(points, fake_ai_backend))
     image_result = await asyncio.gather(image_task)
 
-    image_result = image_result[0]["result"]
+    image_result = image_result[0]["results"]
 
     if second_stage == "mmrotate":
         json_task = asyncio.create_task(mmrotate(MMROTATE_API_URL, image_result))
@@ -65,9 +65,20 @@ async def upload_points(points: dict):
         "result": json_result
     }
 
-async def process_points(response: str, fake_backend: bool = False):
+async def process_points(response: str, fake_backend: bool = False, batch_size: int = 1):
     """
-    
+    process points that are sent from the frontend
+    The points are in the format of:
+    {
+        "data": [
+            x1:,
+            y1:,
+            x2:,
+            y2:,
+            type: [wall, window, door, ...]],
+            ...
+        ]
+    }
     """
     def pil_to_base64(pil_image):
         with BytesIO() as stream:
@@ -96,28 +107,30 @@ async def process_points(response: str, fake_backend: bool = False):
             "cfg_scale": 7,
             "width": 512,
             "height": 512,
+            "batch_size": batch_size,
             "denoising_strength": 0.8,
-            "alwayson_scripts": {
-                "controlnet":{
-                    "args":[
-                        {
-                        "input_image": pil_to_base64(img),
-                        "module":"mlsd",
-                        "model":"control_v11p_sd15_mlsd [aca30ff0]",
-                        "weight":1
-                        }
-                    ]
-                }
-            }
+            # "alwayson_scripts": {
+            #     "controlnet":{
+            #         "args":[
+            #             {
+            #             "input_image": pil_to_base64(img),
+            #             "module":"mlsd",
+            #             "model":"control_v11p_sd15_mlsd [aca30ff0]",
+            #             "weight":1
+            #             }
+            #         ]
+            #     }
+            # }
         }
         # Make a POST request to the stable diffusion API
         response = requests.post(SD_API_URL, json=payload)
         # Read results
-        r = response.json()
-        result = r['images'][0]
-        image = Image.open(io.BytesIO(base64.b64decode(result.split(",", 1)[0])))
-        image.save('./output.png')
-        print('after saving image')
+        results = response.json()['images']
+        images = []
+        for result, index in enumerate(results):
+            image = Image.open(io.BytesIO(base64.b64decode(result.split(",", 1)[0])))
+            images.append(image)
+            image.save('./output'+str(index)+'.png')
     
         if response.status_code == 200:
             # Processing successful, obtain the result and send progress updates
@@ -127,7 +140,7 @@ async def process_points(response: str, fake_backend: bool = False):
             #     await websocket.send_text(chunk)
 
         # Return a completion message
-        return {"status": "Step one completed", "result": image}
+        return {"status": "Step one completed", "results": images}
 
 def process_result_chunks(result):
     # Split the result into chunks for progress updates
