@@ -20,6 +20,7 @@ import math
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from object_detection import find_objects_locs
+import typing
 
 def calculate_inner_outer_polygons(polygon, buffer_distance):
     # Create a Shapely polygon object
@@ -63,12 +64,12 @@ def get_model_path(category:str, base_online_url:str, online_models_list:list, m
         #             return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
         # return None
 
-async def mmrotate(url, image, DEBUG=True):
+async def mmrotate(url:str, images:typing.BinaryIO, DEBUG:bool=True):
     """
     Send the image in a request to the mmrotate API and return objects locations and orientations
     params:
     url: the url of the mmrotate API
-    image: the image to send
+    image: the image to send: PIL image
     returns:
     results: list of dictionaries
     results is in format:
@@ -85,9 +86,10 @@ async def mmrotate(url, image, DEBUG=True):
             id2label[row["id"]] = row["name"]
     base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
 
-    res = requests.post(url, files={"data": image})
+    res = requests.post(url, files={"data": images})
+
     res = res.json()
-    
+    print('mmrotate response: ', res)
     results = []
 
     for single_res in res:
@@ -99,7 +101,7 @@ async def mmrotate(url, image, DEBUG=True):
 
     if DEBUG:
         # convert image from BufferedReader to PIL image
-        im = Image.open("./10.png")
+        im = Image.open("./15.png")
         draw = ImageDraw.Draw(im)
         for r in res:
             draw.rectangle([r["bbox"][0], r["bbox"][1], r["bbox"][2], r["bbox"][3]], outline="red")

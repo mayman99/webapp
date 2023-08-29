@@ -50,13 +50,17 @@ async def upload_points(points: dict):
     image_result = await asyncio.gather(image_task)
 
     image_result = image_result[0]["results"]
+    # print('image_result', image_result)
 
+    async_tasks = []
     if second_stage == "mmrotate":
-        json_task = asyncio.create_task(mmrotate(MMROTATE_API_URL, image_result))
+        for image in image_result:
+            async_tasks.append(asyncio.create_task(mmrotate(MMROTATE_API_URL, image)))
+
+        json_result = await asyncio.gather(*async_tasks)
     else:
         json_task = asyncio.create_task(image_to_json_dl(image_result))
-
-    json_result = await asyncio.gather(json_task)
+        json_result = await asyncio.gather(json_task)
 
     print('json_result', json_result)
 
@@ -87,8 +91,10 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
             return "data:image/png;base64," + base64_str
 
     if fake_backend:
-        img = open("./10.png", 'rb')
-        return {"status": "Processing completed", "result": img}
+        img1 = open("./4.png", 'rb')
+        img2 = open("./15.png", 'rb')
+        imgs = [img1, img2]
+        return {"status": "Processing completed", "results": imgs}
     else:
         # Read Image in RGB order
         points = response.get('data')
@@ -126,9 +132,16 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
         response = requests.post(SD_API_URL, json=payload)
         # Read results
         results = response.json()['images']
+        images_as_buffer = []
         images = []
-        for result, index in enumerate(results):
+        buffered_readers = []
+        for index, result in enumerate(results):
+            print(type(result))
             image = Image.open(io.BytesIO(base64.b64decode(result.split(",", 1)[0])))
+            bytes_io = io.BytesIO(base64.b64decode(result.split(",", 1)[0]))
+            buffered_reader = io.BufferedReader(bytes_io)
+            buffered_readers.append(buffered_reader)
+            images_as_buffer.append(result.split(",", 1)[0])
             images.append(image)
             image.save('./output'+str(index)+'.png')
     
@@ -140,7 +153,7 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
             #     await websocket.send_text(chunk)
 
         # Return a completion message
-        return {"status": "Step one completed", "results": images}
+        return {"status": "Step one completed", "results": buffered_readers}
 
 def process_result_chunks(result):
     # Split the result into chunks for progress updates
