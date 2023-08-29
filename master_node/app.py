@@ -69,7 +69,7 @@ async def upload_points(points: dict):
         "result": json_result
     }
 
-async def process_points(response: str, fake_backend: bool = False, batch_size: int = 1):
+async def process_points(response: str, fake_backend: bool = False, batch_size: int = 2):
     """
     process points that are sent from the frontend
     The points are in the format of:
