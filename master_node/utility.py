@@ -309,6 +309,38 @@ async def image_to_json_classic(image):
 
     return {"status": "success", "result": results}
 
+def color_image_for_sd_lora(image_array, segments_rects, floor_color: tuple=(163, 195, 14), void_color: tuple=(60, 37, 97), walls_color: tuple=(245, 52, 50), doors_color: tuple=(209, 89, 233), windows_color: tuple=(236, 239, 159)):
+    """
+    color the image for sd_lora
+    :param image_array: The numpy array to change the values of.
+    :param segments_rects: is in the form of {type: str , points: []}
+    """
+    # change all values to void color
+    image_array[:, :, :] = void_color
+    pil_image = Image.fromarray(image_array, 'RGB')
+    draw = ImageDraw.Draw(pil_image)
+    # color walls and windows and doors
+    wall_segments = [segment for segment in segments_rects if segment["type"] == "wall"]
+    window_segments = [segment for segment in segments_rects if segment["type"] == "window"]
+    door_segments = [segment for segment in segments_rects if segment["type"] == "door"]
+    floor_segments = [segment for segment in segments_rects if segment["type"] == "floor"]
+    for segment in wall_segments:
+        nested_lst_of_tuples = [tuple(l) for l in segment["points"]]
+        draw.polygon(nested_lst_of_tuples, fill=walls_color)
+    for segment in window_segments:
+        nested_lst_of_tuples = [tuple(l) for l in segment["points"]]
+        draw.polygon(nested_lst_of_tuples, fill=windows_color)
+    for segment in door_segments:
+        nested_lst_of_tuples = [tuple(l) for l in segment["points"]]
+        draw.polygon(nested_lst_of_tuples, fill=doors_color)
+    for segment in floor_segments:
+        nested_lst_of_tuples = [tuple(l) for l in segment["points"]]
+        draw.polygon(nested_lst_of_tuples, fill=floor_color)
+
+    # color floor
+    # draw.polygon(segments_rects[0]["points"], fill=floor_color)
+    return pil_image
+
 def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 195, 14], void_color: list=[60, 37, 97], walls_color: list=[245, 52, 50], doors_color: list=[209, 89, 233], windows_color: list=[236, 239, 159]):
     """
     Change the values inside a polygon to a given value and the values outside to another given value.

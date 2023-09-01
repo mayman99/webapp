@@ -11,12 +11,12 @@ import numpy as np
 import numpy as np
 from io import BytesIO
 
-from utility import image_to_json_classic, image_to_json_dl, mmrotate
+from utility import image_to_json_classic, image_to_json_dl, mmrotate, color_image_for_sd_lora
 from utility import change_values_inside_polygon
 
 app = FastAPI()
 
-SD_API_URL = "http://127.0.0.1:7860/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
+SD_API_URL = "https://f188-34-125-115-8.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
 SD_API_URL_TXT2IMG = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
 MMROTATE_API_URL = "http://192.168.1.53:8080/predictions/epoch_4"  # Replace with the actual API endpoint URL
 
@@ -46,7 +46,7 @@ async def upload_points(points: dict):
     second_stage = "mmrotate"
 
     # Start the processing script asynchronously
-    image_task = asyncio.create_task(process_points(points, fake_ai_backend))
+    image_task = asyncio.create_task(process_points(points, fake_ai_backend, batch_size=1))
     image_result = await asyncio.gather(image_task)
 
     image_result = image_result[0]["results"]
@@ -91,6 +91,13 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
             return "data:image/png;base64," + base64_str
 
     if fake_backend:
+        # Read Image in RGB order
+        points = response.get('data')
+        empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
+        img = color_image_for_sd_lora(empty_drawing_array, points)
+        # img = Image.fromarray(drawing_array, 'RGB')
+        img.save('init.png')
+
         img1 = open("./4.png", 'rb')
         img2 = open("./15.png", 'rb')
         imgs = [img1, img2]
@@ -99,8 +106,7 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
         # Read Image in RGB order
         points = response.get('data')
         empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
-        drawing_array = change_values_inside_polygon(empty_drawing_array, points)
-        img = Image.fromarray(drawing_array, 'RGB')
+        img = color_image_for_sd_lora(empty_drawing_array, points)
         img.save('init.png')
 
         # image_bytes = img.tobytes()
@@ -109,8 +115,8 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
         # A1111 payload
         payload = {
             "init_images": [pil_to_base64(img)],
-            "prompt": "segmentation map, orthographic view, with camera scale of 6.0 furnished apartment, Bedroom, king-size bed, wardrobe, dressing table <lora:pytorch_model_converted:1>",
-            "cfg_scale": 7,
+            "prompt": "segmentation map, orthographic view, with camera scale of 7.0 furnished apartment, Bedroom, king-size bed, wardrobe, dressing table <lora:pytorch_model_converted:1>",
+            "cfg_scale": 7.5,
             "width": 512,
             "height": 512,
             "batch_size": batch_size,
