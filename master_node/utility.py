@@ -45,8 +45,8 @@ def get_model_path(category:str, base_online_url:str, online_models_list:list, m
     if mmrotate:
         for model_name in online_models_list:
             if model_name in category or category in model_name:
-                return "models/" + model_name + '/raw_model_scaled_x50.glb'    
-        return "models/nightstand" + '/raw_model_scaled_x50.glb'
+                return "models/" + model_name + '/raw_model_scaled_x100.glb'    
+        return "models/nightstand" + '/raw_model_scaled_x100.glb'
     else:
         # blueprint js folders structure
         # TODO: don't hard code the paths
@@ -64,7 +64,7 @@ def get_model_path(category:str, base_online_url:str, online_models_list:list, m
         #             return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
         # return None
 
-async def mmrotate(url:str, images:typing.BinaryIO, DEBUG:bool=True):
+async def mmrotate(url:str, images:typing.BinaryIO, original_image:Image, idx:int=0, DEBUG:bool=True):
     """
     Send the image in a request to the mmrotate API and return objects locations and orientations
     params:
@@ -75,6 +75,14 @@ async def mmrotate(url:str, images:typing.BinaryIO, DEBUG:bool=True):
     results is in format:
     {"path": path,"location": [x, y], "label": category_id, "orientation": z_orientation}
     """
+    def get_points_list(x, y, r=5):
+        """
+        Helper function to draw eclipse around a point
+        """	
+        leftUpPoint = (x-r, y-r)
+        rightDownPoint = (x+r, y+r)
+        return [leftUpPoint, rightDownPoint]
+
     id2label = {}
     id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv"
     models_dir = "./../models"
@@ -89,15 +97,40 @@ async def mmrotate(url:str, images:typing.BinaryIO, DEBUG:bool=True):
     res = requests.post(url, files={"data": images})
 
     res = res.json()
-    print('mmrotate response: ', res)
     results = []
 
-    for single_res in res:
+    print(images)
+    second_stage_image = Image.open(images)
+    print(original_image)
+    draw = ImageDraw.Draw(second_stage_image) 
+    for idx, single_res in enumerate(res):
         result = {}
         result["path"] = get_model_path(single_res["class_name"].replace('-', ' '), base_online_url, models_list, True)
         result["location"] = [single_res["bbox"][0], single_res["bbox"][1]]
         result["orientation"] = single_res["bbox"][-1]
         results.append(result)
+        box = single_res["bbox"]
+        x1, y1, x2, y2, ori_euler = tuple(box)
+
+        # convert angle in radians to degrees
+        draw.text((x1, y1+14), str(int(ori_euler * 180 / math.pi)) , fill="white")
+        draw.text((x1, y1), single_res["class_name"].replace('-', ' '), fill="white")
+        draw.ellipse(get_points_list(x1, y1), fill=(255,155,0,255)) # second point
+        draw.ellipse(get_points_list(x2, y2), fill=(255,0,255,255)) # third point
+
+        # draw.rectangle([single_res["bbox"][0], single_res["bbox"][1], single_res["bbox"][2], single_res["bbox"][3]], outline="red")
+        # draw.text((single_res["bbox"][0], single_res["bbox"][1]), single_res["class_name"].replace('-', ' '), fill="red")
+    
+    second_stage_image.save("debug/debug_image_{}.png".format(idx))
+
+
+    # for idx, image in enumerate(images):
+    #     print("debug image: ", idx)
+    #     im = Image.open(image)
+    #     draw = ImageDraw.Draw(im) 
+    #     draw.rectangle([res[idx]["bbox"][0], res[idx]["bbox"][1], res[idx]["bbox"][2], res[idx]["bbox"][3]], outline="red")
+    #     draw.text((res[idx]["bbox"][0], res[idx]["bbox"][1]), res[idx]["class_name"].replace('-', ' '), fill="red")
+    #     im.save("debug_image_{}.png".format(idx))
 
     if DEBUG:
         # convert image from BufferedReader to PIL image

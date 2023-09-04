@@ -16,9 +16,11 @@ from utility import change_values_inside_polygon
 
 app = FastAPI()
 
-SD_API_URL = "https://f188-34-125-115-8.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
+SD_API_URL = "https://6ae3-35-222-47-194.ngrok-free.app/sdapi/v1/img2img"  # Replace with the actual API endpoint URL
 SD_API_URL_TXT2IMG = "https://fa76-34-87-162-144.ngrok-free.app/sdapi/v1/txt2img"  # Replace with the actual API endpoint URL
 MMROTATE_API_URL = "http://192.168.1.53:8080/predictions/epoch_4"  # Replace with the actual API endpoint URL
+
+base_prompt = "<lora:pytorch_model_converted:1> segmentation map, orthographic view, with camera scale of 5.0 furnished apartment, Bedroom, bed, wardrobe, nightstand, table"
 
 # Configure CORS
 origins = [
@@ -41,26 +43,27 @@ app.add_middleware(
 
 @app.post("/upload-points/")
 async def upload_points(points: dict):
-    fake_ai_backend = False
+    fake_ai_backend = True
     # "mmrotate" or "yolo + a valilla cnn"
     second_stage = "mmrotate"
 
     # Start the processing script asynchronously
-    image_task = asyncio.create_task(process_points(points, fake_ai_backend, batch_size=1))
-    image_result = await asyncio.gather(image_task)
+    image_task = asyncio.create_task(process_points(points, fake_ai_backend, batch_size=4))
+    results = await asyncio.gather(image_task)
 
-    image_result = image_result[0]["results"]
+    image_result = results[0]["results"]
+    original_images = results[0]["original_images"]
     # print('image_result', image_result)
 
     async_tasks = []
     if second_stage == "mmrotate":
-        for image in image_result:
-            async_tasks.append(asyncio.create_task(mmrotate(MMROTATE_API_URL, image)))
+        for idx, image in enumerate(image_result):
+            async_tasks.append(asyncio.create_task(mmrotate(MMROTATE_API_URL, image, original_images[idx], idx)))
 
         json_result = await asyncio.gather(*async_tasks)
     else:
-        json_task = asyncio.create_task(image_to_json_dl(image_result))
-        json_result = await asyncio.gather(json_task)
+        for image in image_result:
+            async_tasks.append(asyncio.create_task(image_to_json_dl(image)))
 
     print('json_result', json_result)
 
@@ -95,13 +98,13 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
         points = response.get('data')
         empty_drawing_array = np.zeros((512, 512, 3), dtype=np.uint8)
         img = color_image_for_sd_lora(empty_drawing_array, points)
-        # img = Image.fromarray(drawing_array, 'RGB')
-        img.save('init.png')
+        img1 = open("./596.png", 'rb')
+        imgs = [img1]
+        pil_images = [img]
+        # for img in imgs:
+        #     pil_images.append(img)
 
-        img1 = open("./4.png", 'rb')
-        img2 = open("./15.png", 'rb')
-        imgs = [img1, img2]
-        return {"status": "Processing completed", "results": imgs}
+        return {"status": "Processing completed", "results": imgs, "original_images": pil_images}
     else:
         # Read Image in RGB order
         points = response.get('data')
@@ -115,19 +118,21 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
         # A1111 payload
         payload = {
             "init_images": [pil_to_base64(img)],
-            "prompt": "segmentation map, orthographic view, with camera scale of 7.0 furnished apartment, Bedroom, king-size bed, wardrobe, dressing table <lora:pytorch_model_converted:1>",
-            "cfg_scale": 7.5,
+            "prompt": base_prompt,
+            "cfg_scale": 7,
+            "steps":30,
             "width": 512,
             "height": 512,
             "batch_size": batch_size,
             "denoising_strength": 0.8,
+            "sampler_index": "Euler",
             "alwayson_scripts": {
                 "controlnet":{
                     "args":[
                         {
                         "input_image": pil_to_base64(img),
-                        "module":"mlsd",
-                        "model":"control_v11p_sd15_mlsd [aca30ff0]",
+                        "module":"canny",
+                        "model":"control_v11p_sd15_canny [d14c016b]",
                         "weight":1
                         }
                     ]
@@ -138,18 +143,17 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
         response = requests.post(SD_API_URL, json=payload)
         # Read results
         results = response.json()['images']
-        images_as_buffer = []
         images = []
         buffered_readers = []
         for index, result in enumerate(results):
-            print(type(result))
+            if index == len(results) - 1:
+                continue
             image = Image.open(io.BytesIO(base64.b64decode(result.split(",", 1)[0])))
             bytes_io = io.BytesIO(base64.b64decode(result.split(",", 1)[0]))
             buffered_reader = io.BufferedReader(bytes_io)
             buffered_readers.append(buffered_reader)
-            images_as_buffer.append(result.split(",", 1)[0])
             images.append(image)
-            image.save('./output'+str(index)+'.png')
+            image.save('./results/output'+str(index)+'.png')
     
         if response.status_code == 200:
             # Processing successful, obtain the result and send progress updates
@@ -159,7 +163,7 @@ async def process_points(response: str, fake_backend: bool = False, batch_size: 
             #     await websocket.send_text(chunk)
 
         # Return a completion message
-        return {"status": "Step one completed", "results": buffered_readers}
+        return {"status": "Step one completed", "results": buffered_readers, "original_images": images}
 
 def process_result_chunks(result):
     # Split the result into chunks for progress updates
