@@ -19,7 +19,7 @@ import json
 import math
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
-from object_detection import find_objects_locs
+from object_detection import find_objects_poses
 import typing
 
 def calculate_inner_outer_polygons(polygon, buffer_distance):
@@ -64,7 +64,99 @@ def get_model_path(category:str, base_online_url:str, online_models_list:list, m
         #             return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
         # return None
 
-async def mmrotate(url:str, images:typing.BinaryIO, original_image:Image, idx:int=0, DEBUG:bool=True):
+async def mmdet(url:str, images:typing.BinaryIO, idx:int, DEBUG:bool=True):
+    """
+    Send the image in a request to the mmrotate API and return objects locations and orientations
+    params:
+    url: the url of the mmrotate API
+    image: the image to send: PIL image
+    returns:
+    results: list of dictionaries
+    results is in format:
+    {"path": path,"location": [x, y], "label": category_id, "orientation": z_orientation}
+    """
+    def get_points_list(x, y, r=5):
+        """
+        Helper function to draw eclipse around a point
+        """	
+        leftUpPoint = (x-r, y-r)
+        rightDownPoint = (x+r, y+r)
+        return [leftUpPoint, rightDownPoint]
+
+    id2label = {}
+    id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_reduced_with_rotation_x4.csv"
+    models_dir = "./../models"
+    # read avaliable models from the models dir
+    models_list = os.listdir(models_dir)
+    with open(id_mapping_path, 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            id2label[row["id"]] = row["name"]
+    base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
+
+    res = requests.post(url, files={"data": images})
+
+    res = res.json()
+    results = []
+
+    second_stage_image = Image.open(images)
+    draw = ImageDraw.Draw(second_stage_image) 
+    for single_res in res:
+        result = {}
+        ori_discret_x4 = single_res["class_name"][-1]
+        if ori_discret_x4 == "0":
+            ori_discret_x4 = 0
+        elif ori_discret_x4 == "1":
+            ori_discret_x4 = 0.25*math.pi
+        elif ori_discret_x4 == "2":
+            ori_discret_x4 = 0.5*math.pi
+        elif ori_discret_x4 == "3":
+            ori_discret_x4 = 0.75*math.pi
+
+        cat = single_res["class_name"][:-1]
+        result["path"] = get_model_path(cat.lower(), base_online_url, models_list, True)
+        result["location"] = [single_res["bbox"][0], single_res["bbox"][1]]
+        result["orientation"] = ori_discret_x4
+        results.append(result)
+        box = single_res["bbox"]
+        x1, y1, x2, y2 = tuple(box)
+
+        draw.text((x1, y1+24), str(ori_discret_x4) , fill="white")
+        draw.text((x1, y1), single_res["class_name"].replace('-', ' '), fill="white")
+        # draw.ellipse(get_points_list(x1, y1), fill=(255,155,0,255)) # second point
+        # draw.ellipse(get_points_list(x2, y2), fill=(255,0,255,255)) # third point
+
+        draw.rectangle([x1, y1, x2, y2], outline="red")
+        # draw.text((single_res["bbox"][0], single_res["bbox"][1]), single_res["class_name"].replace('-', ' '), fill="red")
+    
+    second_stage_image.save("debug/debug_image_{}.png".format(idx))
+
+
+    # for idx, image in enumerate(images):
+    #     print("debug image: ", idx)
+    #     im = Image.open(image)
+    #     draw = ImageDraw.Draw(im) 
+    #     draw.rectangle([res[idx]["bbox"][0], res[idx]["bbox"][1], res[idx]["bbox"][2], res[idx]["bbox"][3]], outline="red")
+    #     draw.text((res[idx]["bbox"][0], res[idx]["bbox"][1]), res[idx]["class_name"].replace('-', ' '), fill="red")
+    #     im.save("debug_image_{}.png".format(idx))
+
+    if DEBUG:
+        # convert image from BufferedReader to PIL image
+        im = Image.open("./15.png")
+        draw = ImageDraw.Draw(im)
+        for r in res:
+            draw.rectangle([r["bbox"][0], r["bbox"][1], r["bbox"][2], r["bbox"][3]], outline="red")
+            draw.text((r["bbox"][0], r["bbox"][1]), r["class_name"].replace('-', ' '), fill="red")
+        im.save("debug.png")
+
+    if len(results) == 0:
+        return {"status": "fail", "result": results}
+
+    print(results)
+    return {"status": "success", "result": results}
+
+
+async def mmrotate(url:str, images:typing.BinaryIO, idx:int, DEBUG:bool=True):
     """
     Send the image in a request to the mmrotate API and return objects locations and orientations
     params:
@@ -99,11 +191,9 @@ async def mmrotate(url:str, images:typing.BinaryIO, original_image:Image, idx:in
     res = res.json()
     results = []
 
-    print(images)
     second_stage_image = Image.open(images)
-    print(original_image)
     draw = ImageDraw.Draw(second_stage_image) 
-    for idx, single_res in enumerate(res):
+    for single_res in res:
         result = {}
         result["path"] = get_model_path(single_res["class_name"].replace('-', ' '), base_online_url, models_list, True)
         result["location"] = [single_res["bbox"][0], single_res["bbox"][1]]
@@ -113,7 +203,10 @@ async def mmrotate(url:str, images:typing.BinaryIO, original_image:Image, idx:in
         x1, y1, x2, y2, ori_euler = tuple(box)
 
         # convert angle in radians to degrees
-        draw.text((x1, y1+14), str(int(ori_euler * 180 / math.pi)) , fill="white")
+        draw.text((x1, y1+14), str(int(ori_euler * 360 / math.pi)) , fill="white")
+        # round ori_euler to 3 decimal places
+        ori_euler = round(ori_euler, 3)
+        draw.text((x1, y1+24), str(ori_euler) , fill="white")
         draw.text((x1, y1), single_res["class_name"].replace('-', ' '), fill="white")
         draw.ellipse(get_points_list(x1, y1), fill=(255,155,0,255)) # second point
         draw.ellipse(get_points_list(x2, y2), fill=(255,0,255,255)) # third point
@@ -147,6 +240,41 @@ async def mmrotate(url:str, images:typing.BinaryIO, original_image:Image, idx:in
     print(results)
     return {"status": "success", "result": results}
 
+async def image_to_json_hf_detector(image):
+    # TODO: don't hard code the paths
+    id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv"
+    weights_path = "./weights/hf_detector/livingrooms/"
+    base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
+    models_dir = "./../models"
+
+    # read avaliable models from the models dir
+    models_list = os.listdir(models_dir)
+
+    # results is a dictionary with format:
+    # [
+    #     {"location": [x, y], "label": category_id, "orientation": z_orientation},
+    # ]
+    results = {}
+    id2label = {}
+    image = np.array(image)
+    with open(id_mapping_path, 'r', encoding="utf-8") as csv_file:
+        reader = csv.DictReader(csv_file)
+        for row in reader:
+            id2label[row["id"]] = row["name"]
+    # TODO [EPIC]: integrate ori into object detection network
+    # TODO: it gets the poses, not just locations
+    # TODO: encode oris as one hot encoded, network might not learn well with integer values
+    results = find_objects_poses(image, weights_path)
+    # for ecah result, add the model path using the result label and the id2label dictionary
+    for result in results:
+        result["path"] = get_model_path(id2label[str(result["label"])], base_online_url, models_list)
+
+    if len(results) == 0:
+        return {"status": "fail", "result": results}
+
+    print(results)
+    return {"status": "success", "result": results}
+
 async def image_to_json_dl(image):
     # TODO: don't hard code the paths
     id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_merged_new_complete.csv"
@@ -171,7 +299,7 @@ async def image_to_json_dl(image):
     # TODO [EPIC]: integrate ori into object detection network
     # TODO: it gets the poses, not just locations
     # TODO: encode oris as one hot encoded, network might not learn well with integer values
-    results = find_objects_locs(image, weights_path)
+    results = find_objects_poses(image, weights_path)
     # for ecah result, add the model path using the result label and the id2label dictionary
     for result in results:
         result["path"] = get_model_path(id2label[str(result["label"])], base_online_url, models_list)
@@ -181,7 +309,6 @@ async def image_to_json_dl(image):
 
     print(results)
     return {"status": "success", "result": results}
-
 
 async def image_to_json_classic(image):
 
