@@ -30,7 +30,9 @@ export enum appStates {
     init = "init",
     Editing = "editing",
     Replacing = "replacing",
-    Done = "done"
+    Done = "done",
+    Error = "error",
+    ThreeD = "3d"
 };
 
 function UploadImage() {
@@ -59,13 +61,12 @@ function UploadImage() {
         const finalResponse = fetch('https://01ff-85-108-192-163.ngrok.io/sdapi/v1/img2img', img2imgReq)
             .then(response => response.json())
             .then(data => { console.log(data); setResultImage(data['images'][0]); setAppState(appStates.Done) })
-
     }
 
     async function detect() {
         setAppState(appStates.detecting);
         const initImage = uploadedImages.length > 0 ? uploadedImages[0].data_url : `data:image/png;base64,${resultImage}`;
-        const res = await fetch("https://5753-85-108-192-163.eu.ngrok.io/detect", {
+        const res = await fetch("https://5191-78-184-159-119.ngrok-free.app/detect", {
             method: "POST",
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

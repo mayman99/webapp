@@ -103,7 +103,8 @@ const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState, setTex
     stageRef.current.getStage().getLayers()[1].destroy();
     const uri = stageRef.current.toDataURL();
     onMaskImageChange(uri);
-    setAppState(appStates.Replacing);
+    downloadURI(uri, "mask.png");
+    setAppState(appStates.Done);
   };
 
   const handleMouseDown = (e) => {
@@ -192,7 +193,7 @@ const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState, setTex
             </Layer>
           </Stage>
           <SpaceBar />
-          <Stack spacing={2}>
+          {/* <Stack spacing={2}>
             <Box>
               <Button variant="contained" disabled>Replace selected regions<NavigateNextIcon /></Button>
             </Box>
@@ -200,6 +201,12 @@ const EditCanvas = ({ ImageBase64, onMaskImageChange, masks, setAppState, setTex
               <TextField onChange={handleReplacmentTextChange} placeholder="Replace the rest of the image with" />
               <br></br>
               <Button variant="contained" onClick={handleExport}>Keep selected regions<NavigateNextIcon /></Button>
+            </Box>
+          </Stack> */}
+          <Stack spacing={2}>
+            <Box>
+              <br></br>
+              <Button variant="contained" onClick={handleExport}>Create masks<NavigateNextIcon /></Button>
             </Box>
           </Stack>
         </Box>
