@@ -19,7 +19,62 @@ DEBUG = True
 #         id2label[row["id"]] = row["name"]
 # image = Image.open(os.path.join("C:\\Users\\super\\OneDrive\\Pictures\\", "00002-3422126125.png"))
 
-def find_objects_locs(image_array, weights_path, image_size=512):
+# def find_objects_poses_hf_single_network(image_array, weights_path, image_size=512):
+#     """
+#     parameters:
+#     image: PIL image
+#     weights_path: path to the weights of the model
+#     image_size: size of the image
+#     returns:
+#     results: list of dictionaries
+#     each dictionary has the following format:
+#     {"location": [x, y], "label": category_id, "orientation": z_orientation}
+#     """
+#     image_processor = AutoImageProcessor.from_pretrained(weights_path)
+#     model = AutoModelForObjectDetection.from_pretrained(weights_path)
+    
+#     # results is a dictionary with format:
+#     # [
+#     #     {"location": [x, y], "label": category_id, "orientation": z_orientation},
+#     # ]
+#     results = []
+#     category_cubes = []
+#     ori_cubes = []
+
+#     image = Image.fromarray(image_array)
+#     with torch.no_grad():
+#         inputs = image_processor(images=image, return_tensors="pt")
+#         outputs = model(**inputs)
+#         target_sizes = torch.tensor([image.size[::-1]])
+#         model_results = image_processor.post_process_object_detection(outputs, threshold=0.25, target_sizes=target_sizes)[0]
+
+#     for score, label, box in zip(model_results["scores"], model_results["labels"], model_results["boxes"]):
+#         box = [round(i, 2) for i in box.tolist()]
+#         label = label.item()
+#         x, y, x2, y2 = tuple(box)
+
+#         if DEBUG:
+#             draw = ImageDraw.Draw(image)
+#             draw.rectangle(box, outline="red")
+#             draw.text((x, y), model.config.id2label[label], fill="red")
+
+#         # If detection is an orientation cube
+#         if int(label) > 113:
+#             ori_cubes.append({"location": [x, y], "label": label})
+#         # If detection is a category cube
+#         else:
+#             category_cubes.append({"location": [x, y], "label": label})
+
+#     # Match category and ori cubes
+#     for cube in category_cubes:
+
+
+        
+#         # results.append({"location": [x, y], "label": label, "orientation": 0})
+
+#     return results
+
+def find_objects_poses(image_array, weights_path, image_size=512):
     """
     parameters:
     image: PIL image
