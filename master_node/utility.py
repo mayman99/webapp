@@ -21,6 +21,8 @@ from shapely.geometry import Polygon
 from shapely.ops import unary_union
 from object_detection import find_objects_poses
 import typing
+from Levenshtein import distance
+
 
 def calculate_inner_outer_polygons(polygon, buffer_distance):
     # Create a Shapely polygon object
@@ -64,7 +66,27 @@ def get_model_path(category:str, base_online_url:str, online_models_list:list, m
         #             return os.path.join(front_3d_models, model_id, "normalized_model.obj")        
         # return None
 
-async def mmdet(url:str, images:typing.BinaryIO, idx:int, DEBUG:bool=True):
+def get_fancy_model_path_randomized(category:str, base_url:str, models_info_data:dict={}):
+    """
+    Given a cetegory return a 3d obj model path given the data in models_info_data
+    """
+    def choose_model(model_name, models_info_data):
+        """
+        Choose a model from the models_info_data
+        """
+        distance_dict = {}
+        for model_id in models_info_data.keys():
+            cat = models_info_data[model_id]["category"]
+            if cat == None:
+                continue
+            distance_dict[model_id] = distance(model_name, cat)
+        return min(distance_dict, key=distance_dict.get)
+
+    print(choose_model(category, models_info_data))
+    return "{}/{}/raw_model.obj".format(base_url, choose_model(category, models_info_data))
+    
+
+async def mmdet(url:str, images:typing.BinaryIO, idx:int, DEBUG:bool=True, id_mapping_path:str="C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_reduced_with_rotation_x8.csv" ):
     """
     Send the image in a request to the mmrotate API and return objects locations and orientations
     params:
@@ -84,7 +106,6 @@ async def mmdet(url:str, images:typing.BinaryIO, idx:int, DEBUG:bool=True):
         return [leftUpPoint, rightDownPoint]
 
     id2label = {}
-    id_mapping_path = "C:\\Users\\super\\ws\\sd_lora_segmap_topdown\\blenderproc_fork\\blenderproc\\resources\\front_3D\\3D_front_mapping_reduced_with_rotation_x4.csv"
     models_dir = "./../models"
     # read avaliable models from the models dir
     models_list = os.listdir(models_dir)
@@ -92,29 +113,60 @@ async def mmdet(url:str, images:typing.BinaryIO, idx:int, DEBUG:bool=True):
         reader = csv.DictReader(csv_file)
         for row in reader:
             id2label[row["id"]] = row["name"]
+    
+    # Read models info
+    models_data = {}
+    models_info_data = {}
+    models_info_path = 'C:\\Users\\super\\ws\\data\\front_3d\\3D-FUTURE-model\\model_info.json'
+    with open(os.path.join(models_info_path), "r", encoding="utf-8") as models_json:
+        models_data = json.load(models_json)
+        for item in models_data:
+            models_info_data[item["model_id"]] = item
+
+            
     base_online_url = 'https://raw.githubusercontent.com/mayman99/webapp/main/models'
+    base_url = 'http://localhost:3000'
 
     res = requests.post(url, files={"data": images})
 
+    print(res)
     res = res.json()
     results = []
 
     second_stage_image = Image.open(images)
-    draw = ImageDraw.Draw(second_stage_image) 
+    draw = ImageDraw.Draw(second_stage_image)
+
     for single_res in res:
         result = {}
         ori_discret_x4 = single_res["class_name"][-1]
+        # if ori_discret_x4 == "0":
+        #     ori_discret_x4 = 0
+        # elif ori_discret_x4 == "1":
+        #     ori_discret_x4 = 0.25*math.pi
+        # elif ori_discret_x4 == "2":
+        #     ori_discret_x4 = 0.5*math.pi
+        # elif ori_discret_x4 == "3":
+        #     ori_discret_x4 = 0.75*math.pi
         if ori_discret_x4 == "0":
-            ori_discret_x4 = 0
+            ori_discret_x4 = math.radians(0)
         elif ori_discret_x4 == "1":
-            ori_discret_x4 = 0.25*math.pi
+            ori_discret_x4 = math.radians(67.5)
         elif ori_discret_x4 == "2":
-            ori_discret_x4 = 0.5*math.pi
+            ori_discret_x4 = math.radians(112.5)
         elif ori_discret_x4 == "3":
-            ori_discret_x4 = 0.75*math.pi
+            ori_discret_x4 = math.radians(140)
+        elif ori_discret_x4 == "4":
+            ori_discret_x4 = math.radians(180)
+        elif ori_discret_x4 == "5":
+            ori_discret_x4 = math.radians(247.5)
+        elif ori_discret_x4 == "6":
+            ori_discret_x4 = math.radians(270)
+        elif ori_discret_x4 == "7":
+            ori_discret_x4 = math.radians(337.5)
 
         cat = single_res["class_name"][:-1]
-        result["path"] = get_model_path(cat.lower(), base_online_url, models_list, True)
+        # result["path"] = get_model_path(cat.lower(), base_online_url, models_list, True)
+        result["path"] = get_fancy_model_path_randomized(cat.lower(), base_url, models_info_data)
         result["location"] = [single_res["bbox"][0], single_res["bbox"][1]]
         result["orientation"] = ori_discret_x4
         results.append(result)
@@ -469,7 +521,7 @@ async def image_to_json_classic(image):
 
     return {"status": "success", "result": results}
 
-def color_image_for_sd_lora(image_array, segments_rects, floor_color: tuple=(163, 195, 14), void_color: tuple=(60, 37, 97), walls_color: tuple=(245, 52, 50), doors_color: tuple=(209, 89, 233), windows_color: tuple=(236, 239, 159)):
+def color_image_for_sd_lora(image_array, segments_rects, floor_color: tuple=(236, 232,  48), void_color: tuple=(218, 180,  18), walls_color: tuple=(97, 176, 159), doors_color: tuple=( 81, 190,  28), windows_color: tuple=( 5,  50, 169)):
     """
     color the image for sd_lora
     :param image_array: The numpy array to change the values of.
@@ -670,3 +722,24 @@ def change_values_inside_polygon(np_array, points:dict, floor_color: list=[163, 
     #     np_array[window_mask] = windows_color 
 
     return np_array
+
+# TODO
+def choose_model(model_info: list= [], category:str='', user_text:str=''):
+    """
+    Given model category and user pref, choose the most sutable model
+
+    :param: model_info loaded from model_info json of the Front-3D dataset
+    :param: category of the model to be loaded
+    :param: user_text user input text which hints to which style and color of the object
+    """
+    model_id = ''
+    raise NotImplementedError
+
+
+def choose_textures():
+    """
+    Given the textures of the loaded models, choose the best textures/colors for the walls and floors
+
+    """
+    raise NotImplementedError
+
